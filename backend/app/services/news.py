@@ -247,7 +247,10 @@ def _validate_and_slice(
 
     for item in items:
         processed += 1
-        is_valid, context = validate_article(item, query)
+        try:
+            is_valid, context = validate_article(item, query)
+        except Exception:
+            is_valid, context = False, None
         if is_valid:
             item.context = context or item.description
             valid_items.append(item)

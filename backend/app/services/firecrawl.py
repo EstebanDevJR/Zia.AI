@@ -30,9 +30,11 @@ def scrape_page(url: str) -> dict | None:
         "Content-Type": "application/json",
     }
 
-    with httpx.Client(timeout=25) as client:
-        response = client.post(f"{settings.firecrawl_base}/scrape", json=payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-
-    return data.get("data") or {}
+    try:
+        with httpx.Client(timeout=25) as client:
+            response = client.post(f"{settings.firecrawl_base}/scrape", json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        return data.get("data") or {}
+    except httpx.HTTPError:
+        return None
