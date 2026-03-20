@@ -6,8 +6,12 @@ from email.message import EmailMessage
 from app.config import settings
 
 
+def smtp_configured() -> bool:
+    return bool(settings.smtp_host and settings.smtp_user and settings.smtp_password)
+
+
 def send_email(subject: str, html: str, recipient: str) -> None:
-    if not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
+    if not smtp_configured():
         raise RuntimeError("SMTP no configurado")
 
     message = EmailMessage()

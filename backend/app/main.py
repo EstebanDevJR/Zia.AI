@@ -1,4 +1,9 @@
-﻿from fastapi import Depends, FastAPI, HTTPException
+﻿from __future__ import annotations
+
+import secrets
+from datetime import datetime
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
@@ -13,9 +18,13 @@ from app.schemas import (
     SummaryRequest,
     SummaryResponse,
 )
-from app.services.emailer import send_email
+from app.services.cache import cache_key, load_cache, persist_articles, save_cache
+from app.services.emailer import send_email, smtp_configured
 from app.services.firecrawl import scrape_markdown
-from app.services.news import CATEGORY_QUERIES, fetch_news
+from app.services.news import CATEGORY_QUERIES, fetch_news, upsert_subscription
+from app.services.observability import init_logging, log_event, metrics_app, metrics_middleware
+from app.services.queue import enqueue_job
+from app.services.rate_limit import check_rate_limit
 from app.services.scheduler import start_scheduler
 from app.services.summarize import summarize_text
 
@@ -28,10 +37,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(metrics_middleware)
+
+app.mount("/metrics", metrics_app())
 
 
 @app.on_event("startup")
 def on_startup() -> None:
+    init_logging()
     init_db()
     if settings.enable_scheduler:
         start_scheduler()
@@ -48,13 +61,40 @@ def categories() -> list[str]:
 
 
 @app.get("/news", response_model=NewsResponse)
-def news(category: str | None = None, q: str | None = None) -> NewsResponse:
-    items = fetch_news(category=category, q=q)
+def news(
+    request: Request,
+    category: str | None = None,
+    q: str | None = None,
+    lang: str | None = None,
+) -> NewsResponse:
+    cache_id = cache_key([category or "all", q or "", lang or ""])
+    with next(get_session()) as session:
+        cached = load_cache(session, cache_id)
+        if cached:
+            return NewsResponse(items=cached)
+
+        items = fetch_news(category=category, q=q, lang=lang)
+        persist_articles(session, items)
+        save_cache(session, cache_id, items)
+
+    log_event("news_fetch", ip=request.client.host if request.client else "unknown")
     return NewsResponse(items=items)
 
 
 @app.post("/summary", response_model=SummaryResponse)
-def summary(payload: SummaryRequest, session: Session = Depends(get_session)) -> SummaryResponse:
+def summary(
+    request: Request,
+    payload: SummaryRequest,
+    session: Session = Depends(get_session),
+) -> SummaryResponse:
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(
+        session,
+        key=f"summary:{client_ip}",
+        limit=settings.rate_limit_summary_per_hour,
+        window_seconds=3600,
+    )
+
     cached = session.exec(select(SummaryCache).where(SummaryCache.url == payload.article.url)).first()
     if cached:
         return SummaryResponse(summary=cached.summary)
@@ -79,7 +119,21 @@ def summary(payload: SummaryRequest, session: Session = Depends(get_session)) ->
 
 
 @app.post("/send")
-def send(payload: SendRequest) -> dict:
+def send(payload: SendRequest, request: Request, session: Session = Depends(get_session)) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(
+        session,
+        key=f"send:{client_ip}",
+        limit=settings.rate_limit_send_per_hour,
+        window_seconds=3600,
+    )
+    check_rate_limit(
+        session,
+        key=f"send:{payload.email}",
+        limit=settings.rate_limit_send_per_hour,
+        window_seconds=3600,
+    )
+
     article = payload.article
     html = (
         f"<h2>{article.title}</h2>"
@@ -87,43 +141,80 @@ def send(payload: SendRequest) -> dict:
         f"<p>Fuente: {article.source}</p>"
         f"<p><a href='{article.url}'>Ver noticia original</a></p>"
     )
-    try:
-        send_email(subject="Noticia IA", html=html, recipient=payload.email)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return {"status": "sent"}
+    if not smtp_configured():
+        raise HTTPException(status_code=400, detail="SMTP no configurado")
+
+    job = enqueue_job("app.services.tasks.send_single_email", payload.email, "Noticia IA", html)
+    if job is None:
+        try:
+            send_email(subject="Noticia IA", html=html, recipient=payload.email)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {"status": "queued" if job else "sent"}
 
 
 @app.post("/subscribe", response_model=SubscriptionResponse)
-def subscribe(payload: SubscribeRequest, session: Session = Depends(get_session)) -> SubscriptionResponse:
-    existing = session.exec(
-        select(Subscription).where(
-            Subscription.email == payload.email,
-            Subscription.category == payload.category,
-        )
-    ).first()
+def subscribe(
+    payload: SubscribeRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> SubscriptionResponse:
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(
+        session,
+        key=f"subscribe:{client_ip}",
+        limit=settings.rate_limit_subscribe_per_hour,
+        window_seconds=3600,
+    )
+    check_rate_limit(
+        session,
+        key=f"subscribe:{payload.email}",
+        limit=settings.rate_limit_subscribe_per_hour,
+        window_seconds=3600,
+    )
 
-    if existing:
-        if not existing.active:
-            existing.active = True
-            session.add(existing)
-            session.commit()
-        return SubscriptionResponse(
-            id=existing.id,
-            email=existing.email,
-            category=existing.category,
-            active=existing.active,
-        )
+    auto_confirm = not smtp_configured()
+    sub = upsert_subscription(session, payload.email, payload.category, auto_confirm=auto_confirm)
 
-    sub = Subscription(email=payload.email, category=payload.category)
-    session.add(sub)
-    session.commit()
-    session.refresh(sub)
+    if not auto_confirm:
+        confirm_link = f"{settings.public_base_url}/confirm?token={sub.confirm_token}"
+        html = (
+            f"<p>Confirma tu suscripción a noticias de IA ({sub.category}).</p>"
+            f"<p><a href='{confirm_link}'>Confirmar suscripción</a></p>"
+        )
+        job = enqueue_job("app.services.tasks.send_single_email", sub.email, "Confirma tu suscripción", html)
+        if job is None:
+            send_email(subject="Confirma tu suscripción", html=html, recipient=sub.email)
 
     return SubscriptionResponse(
         id=sub.id,
         email=sub.email,
         category=sub.category,
         active=sub.active,
+        confirmed=sub.confirmed,
     )
+
+
+@app.get("/confirm")
+def confirm(token: str, session: Session = Depends(get_session)) -> dict:
+    sub = session.exec(select(Subscription).where(Subscription.confirm_token == token)).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Token inválido")
+    sub.active = True
+    sub.confirmed = True
+    session.add(sub)
+    session.commit()
+    return {"status": "confirmed"}
+
+
+@app.get("/unsubscribe")
+def unsubscribe(token: str, session: Session = Depends(get_session)) -> dict:
+    sub = session.exec(select(Subscription).where(Subscription.unsub_token == token)).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Token inválido")
+    sub.active = False
+    session.add(sub)
+    session.commit()
+    return {"status": "unsubscribed"}

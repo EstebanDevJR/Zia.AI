@@ -65,10 +65,10 @@ def _clean_url(url: str) -> str:
     return url
 
 
-def search_ddg(query: str, limit: int = 20) -> list[dict[str, Any]]:
+def search_ddg(query: str, limit: int = 20, accept_language: str | None = None) -> list[dict[str, Any]]:
     headers = {
         "User-Agent": settings.ddg_user_agent,
-        "Accept-Language": settings.ddg_accept_language,
+        "Accept-Language": accept_language or settings.ddg_accept_language,
         "Referer": "https://html.duckduckgo.com/",
     }
     data = {

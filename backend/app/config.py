@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         "reuters.com,apnews.com,bbc.com,theguardian.com,nytimes.com",
         alias="FIRECRAWL_ALLOWED_DOMAINS",
     )
+
     ddg_base: str = Field(default="https://html.duckduckgo.com/html/", alias="DDG_BASE")
     ddg_user_agent: str = Field(
         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
 
     frontend_origin: str = Field(default="http://localhost:3000", alias="FRONTEND_ORIGIN")
+    public_base_url: str = Field(default="http://localhost:8000", alias="PUBLIC_BASE_URL")
 
     smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
@@ -39,6 +41,13 @@ class Settings(BaseSettings):
     enable_scheduler: bool = Field(default=True, alias="ENABLE_SCHEDULER")
     daily_digest_hour: int = Field(default=8, alias="DAILY_DIGEST_HOUR")
     timezone: str = Field(default="America/Bogota", alias="TZ")
+
+    redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
+
+    news_cache_ttl_minutes: int = Field(default=15, alias="NEWS_CACHE_TTL_MINUTES")
+    rate_limit_summary_per_hour: int = Field(default=30, alias="RATE_LIMIT_SUMMARY_PER_HOUR")
+    rate_limit_send_per_hour: int = Field(default=10, alias="RATE_LIMIT_SEND_PER_HOUR")
+    rate_limit_subscribe_per_hour: int = Field(default=5, alias="RATE_LIMIT_SUBSCRIBE_PER_HOUR")
 
 
 settings = Settings()

@@ -10,6 +10,8 @@ class Article(BaseModel):
     published_at: datetime | None = None
     image_url: str | None = None
     category: str | None = None
+    source_domain: str | None = None
+    trust_score: float | None = None
 
 
 class NewsResponse(BaseModel):
@@ -39,3 +41,4 @@ class SubscriptionResponse(BaseModel):
     email: EmailStr
     category: str
     active: bool
+    confirmed: bool
