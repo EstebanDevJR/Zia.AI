@@ -12,10 +12,14 @@ class Article(BaseModel):
     category: str | None = None
     source_domain: str | None = None
     trust_score: float | None = None
+    context: str | None = None
 
 
 class NewsResponse(BaseModel):
     items: list[Article]
+    page: int
+    page_size: int
+    has_more: bool
 
 
 class SummaryRequest(BaseModel):

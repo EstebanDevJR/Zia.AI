@@ -49,5 +49,14 @@ class Settings(BaseSettings):
     rate_limit_send_per_hour: int = Field(default=10, alias="RATE_LIMIT_SEND_PER_HOUR")
     rate_limit_subscribe_per_hour: int = Field(default=5, alias="RATE_LIMIT_SUBSCRIBE_PER_HOUR")
 
+    news_page_size_default: int = Field(default=8, alias="NEWS_PAGE_SIZE_DEFAULT")
+    news_page_size_max: int = Field(default=20, alias="NEWS_PAGE_SIZE_MAX")
+    news_max_limit: int = Field(default=60, alias="NEWS_MAX_LIMIT")
+
+    validation_enabled: bool = Field(default=True, alias="VALIDATION_ENABLED")
+    validation_max: int = Field(default=20, alias="VALIDATION_MAX")
+    validation_use_llm: bool = Field(default=False, alias="VALIDATION_USE_LLM")
+    context_max_chars: int = Field(default=700, alias="CONTEXT_MAX_CHARS")
+
 
 settings = Settings()

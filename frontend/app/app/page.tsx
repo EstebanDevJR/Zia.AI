@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Loader2,
-  ArrowRight,
   ExternalLink,
   Mail,
   Shield
@@ -20,6 +19,7 @@ type Article = {
   category?: string | null;
   source_domain?: string | null;
   trust_score?: number | null;
+  context?: string | null;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -29,6 +29,9 @@ export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [lang, setLang] = useState<string>('es-ES');
   const [articles, setArticles] = useState<Article[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(8);
+  const [hasMore, setHasMore] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [summarizing, setSummarizing] = useState<Record<string, boolean>>({});
@@ -59,21 +62,26 @@ export default function Dashboard() {
     if (!selectedCategory) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}`);
+      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}&page=${page}&page_size=${pageSize}`);
       if (!res.ok) throw new Error('Error');
       const data = await res.json();
       setArticles(data.items);
+      setHasMore(Boolean(data.has_more));
     } catch (err) {
       console.error(err);
       showStatus('error', 'Error loading news.');
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, lang]);
+  }, [selectedCategory, lang, page, pageSize]);
 
   useEffect(() => {
     fetchNews();
   }, [fetchNews]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, lang]);
 
   const showStatus = (type: 'success' | 'error', message: string) => {
     setStatus({ type, message });
@@ -216,9 +224,16 @@ export default function Dashboard() {
                       {article.title}
                     </h2>
                     
-                    <p className="opacity-60 text-sm leading-relaxed max-w-2xl">
-                      {article.description}
-                    </p>
+                    <div className="space-y-4 max-w-2xl">
+                      <p className="opacity-60 text-sm leading-relaxed">
+                        {article.description}
+                      </p>
+                      {article.context ? (
+                        <p className="text-sm leading-relaxed border-l border-black/20 dark:border-white/20 pl-4">
+                          {article.context}
+                        </p>
+                      ) : null}
+                    </div>
 
                     <AnimatePresence>
                       {summaries[article.url] && (
@@ -313,6 +328,24 @@ export default function Dashboard() {
             </p>
           </section>
         </aside>
+      </div>
+
+      <div className="flex items-center justify-between mt-16 border-t border-black dark:border-white pt-8 text-[10px] uppercase tracking-[0.2em]">
+        <button
+          className="btn-minimal"
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page === 1}
+        >
+          Prev
+        </button>
+        <span>Page {page}</span>
+        <button
+          className="btn-minimal"
+          onClick={() => setPage((prev) => prev + 1)}
+          disabled={!hasMore}
+        >
+          Next
+        </button>
       </div>
     </div>
   );

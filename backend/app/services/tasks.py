@@ -18,7 +18,7 @@ def send_digest_for_subscription(subscription_id: int) -> None:
         if not sub or not sub.active or not sub.confirmed:
             return
 
-        items = fetch_news(category=sub.category)
+        items, _ = fetch_news(category=sub.category, page=1, page_size=5)
         if not items:
             return
         top_items = items[:5]

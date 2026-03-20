@@ -1,18 +1,16 @@
 ﻿from __future__ import annotations
 
-import secrets
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from sqlmodel import Session, select
 
 from app.config import settings
-from app.models import Subscription
 from app.schemas import Article
 from app.services.ddg import search_ddg
 from app.services.observability import EXTERNAL_CALLS, log_event
+from app.services.validator import validate_article
 
 CATEGORY_QUERIES = {
     "research": "AI research OR machine learning paper OR arXiv",
@@ -33,6 +31,7 @@ SAMPLE_NEWS = [
         category="policy",
         source_domain="bbc.com",
         trust_score=1.0,
+        context=None,
     ),
     Article(
         title="New open research model sets efficiency records",
@@ -44,6 +43,7 @@ SAMPLE_NEWS = [
         category="research",
         source_domain="technologyreview.com",
         trust_score=1.0,
+        context=None,
     ),
 ]
 
@@ -96,9 +96,30 @@ def _trust_score(domain: str, allowed: list[str]) -> float:
     return 1.0 if any(domain == d or domain.endswith(f".{d}") for d in allowed) else 0.3
 
 
-def fetch_news(category: str | None = None, q: str | None = None, lang: str | None = None) -> list[Article]:
+def fetch_news(
+    category: str | None = None,
+    q: str | None = None,
+    lang: str | None = None,
+    page: int = 1,
+    page_size: int = 8,
+) -> tuple[list[Article], bool]:
+    items = _fetch_raw(category=category, q=q, lang=lang, limit=_limit_for_page(page, page_size))
+    if not items:
+        return [item for item in SAMPLE_NEWS if not category or item.category == category], False
+
+    validation_query = q or category
+    validated_items, has_more = _validate_and_slice(items, validation_query, page, page_size)
+    return validated_items, has_more
+
+
+def _fetch_raw(
+    category: str | None,
+    q: str | None,
+    lang: str | None,
+    limit: int,
+) -> list[Article]:
     if not settings.firecrawl_api_key:
-        return _fetch_ddg(category, q, lang)
+        return _fetch_ddg(category, q, lang, limit)
 
     allowed_domains = _allowed_domains()
     query = _build_query(category, q)
@@ -106,8 +127,9 @@ def fetch_news(category: str | None = None, q: str | None = None, lang: str | No
 
     payload: dict[str, Any] = {
         "query": query,
-        "limit": 20,
+        "limit": limit,
         "sources": ["news"],
+        "ignoreInvalidURLs": True,
     }
 
     headers = {
@@ -124,7 +146,7 @@ def fetch_news(category: str | None = None, q: str | None = None, lang: str | No
     except httpx.HTTPError as exc:
         EXTERNAL_CALLS.labels("firecrawl", "error").inc()
         log_event("firecrawl_error", error=str(exc))
-        return _fetch_ddg(category, q, lang)
+        return _fetch_ddg(category, q, lang, limit)
 
     results = _extract_results(data)
     items: list[Article] = []
@@ -153,24 +175,30 @@ def fetch_news(category: str | None = None, q: str | None = None, lang: str | No
                 category=category,
                 source_domain=domain,
                 trust_score=_trust_score(domain, allowed_domains),
+                context=None,
             )
         )
 
     return items
 
 
-def _fetch_ddg(category: str | None = None, q: str | None = None, lang: str | None = None) -> list[Article]:
+def _fetch_ddg(
+    category: str | None,
+    q: str | None,
+    lang: str | None,
+    limit: int,
+) -> list[Article]:
     allowed_domains = _allowed_domains()
     query = _build_query(category, q)
     query = _with_domain_filter(query, allowed_domains)
 
     try:
-        results = search_ddg(query=query, limit=20, accept_language=lang)
+        results = search_ddg(query=query, limit=limit, accept_language=lang)
         EXTERNAL_CALLS.labels("duckduckgo", "ok").inc()
     except httpx.HTTPError as exc:
         EXTERNAL_CALLS.labels("duckduckgo", "error").inc()
         log_event("ddg_error", error=str(exc))
-        return [item for item in SAMPLE_NEWS if not category or item.category == category]
+        return []
 
     items: list[Article] = []
     for result in results:
@@ -192,10 +220,52 @@ def _fetch_ddg(category: str | None = None, q: str | None = None, lang: str | No
                 category=category,
                 source_domain=domain,
                 trust_score=_trust_score(domain, allowed_domains),
+                context=None,
             )
         )
 
-    return items or [item for item in SAMPLE_NEWS if not category or item.category == category]
+    return items
+
+
+def _validate_and_slice(
+    items: list[Article],
+    query: str | None,
+    page: int,
+    page_size: int,
+) -> tuple[list[Article], bool]:
+    if not settings.validation_enabled:
+        for item in items:
+            item.context = item.description
+        start = (page - 1) * page_size
+        end = start + page_size
+        return items[start:end], len(items) > end
+
+    valid_items: list[Article] = []
+    target_end = page * page_size
+    validation_cap = max(settings.validation_max, target_end)
+    processed = 0
+
+    for item in items:
+        processed += 1
+        is_valid, context = validate_article(item, query)
+        if is_valid:
+            item.context = context or item.description
+            valid_items.append(item)
+        if len(valid_items) >= target_end:
+            break
+        if processed >= validation_cap:
+            break
+
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    has_more = len(valid_items) > end or processed < len(items)
+    return valid_items[start:end], has_more
+
+
+def _limit_for_page(page: int, page_size: int) -> int:
+    requested = page * page_size + 6
+    return min(settings.news_max_limit, max(requested, settings.validation_max))
 
 
 def _extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -220,15 +290,21 @@ def _safe_date(value: str | None) -> datetime | None:
 
 
 def new_tokens() -> tuple[str, str]:
+    import secrets
+
     return secrets.token_urlsafe(32), secrets.token_urlsafe(32)
 
 
 def upsert_subscription(
-    session: Session,
+    session,
     email: str,
     category: str,
     auto_confirm: bool,
-) -> Subscription:
+):
+    from sqlmodel import select
+
+    from app.models import Subscription
+
     existing = session.exec(
         select(Subscription).where(Subscription.email == email, Subscription.category == category)
     ).first()

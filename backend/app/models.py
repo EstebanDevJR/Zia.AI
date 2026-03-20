@@ -29,6 +29,7 @@ class ArticleRecord(SQLModel, table=True):
     url: str = Field(sa_column=Column(String, unique=True, index=True))
     title: str
     description: str | None = None
+    context: str | None = None
     source_domain: str
     published_at: datetime | None = None
     image_url: str | None = None

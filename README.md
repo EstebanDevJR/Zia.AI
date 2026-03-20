@@ -24,6 +24,10 @@ Si Firecrawl no está disponible, se usa DuckDuckGo HTML como fallback para obte
 ## Suscripciones
 Se usa doble opt-in por correo cuando SMTP está configurado. También se incluye enlace de cancelación en cada digest diario.
 
+## Paginación y validación
+- `GET /news` soporta `page` y `page_size`.
+- Se valida relevancia y URLs con agentes antes de mostrar resultados.
+
 ## Variables de entorno
 Copia `.env.example` a `.env` y completa los valores. El frontend usa `NEXT_PUBLIC_API_URL` y el backend lee las credenciales de Firecrawl/OpenAI/SMTP desde ese mismo archivo.
 

@@ -66,19 +66,30 @@ def news(
     category: str | None = None,
     q: str | None = None,
     lang: str | None = None,
+    page: int = 1,
+    page_size: int | None = None,
 ) -> NewsResponse:
-    cache_id = cache_key([category or "all", q or "", lang or ""])
+    if page < 1:
+        page = 1
+    if page_size is None:
+        page_size = settings.news_page_size_default
+    if page_size < 1:
+        page_size = settings.news_page_size_default
+    page_size = min(page_size, settings.news_page_size_max)
+
+    cache_id = cache_key([category or "all", q or "", lang or "", str(page), str(page_size)])
     with next(get_session()) as session:
         cached = load_cache(session, cache_id)
         if cached:
-            return NewsResponse(items=cached)
+            items, has_more = cached
+            return NewsResponse(items=items, page=page, page_size=page_size, has_more=has_more)
 
-        items = fetch_news(category=category, q=q, lang=lang)
+        items, has_more = fetch_news(category=category, q=q, lang=lang, page=page, page_size=page_size)
         persist_articles(session, items)
-        save_cache(session, cache_id, items)
+        save_cache(session, cache_id, items, has_more=has_more)
 
     log_event("news_fetch", ip=request.client.host if request.client else "unknown")
-    return NewsResponse(items=items)
+    return NewsResponse(items=items, page=page, page_size=page_size, has_more=has_more)
 
 
 @app.post("/summary", response_model=SummaryResponse)

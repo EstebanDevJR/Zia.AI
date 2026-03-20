@@ -17,7 +17,7 @@ def cache_key(parts: Iterable[str]) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def load_cache(session: Session, key: str) -> list[Article] | None:
+def load_cache(session: Session, key: str) -> tuple[list[Article], bool] | None:
     item = session.exec(select(NewsCache).where(NewsCache.cache_key == key)).first()
     if not item:
         return None
@@ -30,13 +30,23 @@ def load_cache(session: Session, key: str) -> list[Article] | None:
 
     try:
         payload = json.loads(item.payload)
-        return [Article(**entry) for entry in payload]
+        if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+            items = [Article(**entry) for entry in payload.get("items", [])]
+            has_more = bool(payload.get("has_more", False))
+            return items, has_more
+        if isinstance(payload, list):
+            return [Article(**entry) for entry in payload], False
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
 
 
-def save_cache(session: Session, key: str, articles: list[Article]) -> None:
-    payload = json.dumps([article.model_dump() for article in articles])
+def save_cache(session: Session, key: str, articles: list[Article], has_more: bool = False) -> None:
+    payload = json.dumps(
+        {
+            "items": [article.model_dump() for article in articles],
+            "has_more": has_more,
+        }
+    )
     existing = session.exec(select(NewsCache).where(NewsCache.cache_key == key)).first()
     if existing:
         existing.payload = payload
@@ -55,6 +65,7 @@ def persist_articles(session: Session, articles: list[Article]) -> None:
         if existing:
             existing.title = article.title
             existing.description = article.description
+            existing.context = article.context
             existing.source_domain = article.source_domain or article.source
             existing.published_at = article.published_at
             existing.image_url = article.image_url
@@ -68,6 +79,7 @@ def persist_articles(session: Session, articles: list[Article]) -> None:
                     url=article.url,
                     title=article.title,
                     description=article.description,
+                    context=article.context,
                     source_domain=article.source_domain or article.source,
                     published_at=article.published_at,
                     image_url=article.image_url,

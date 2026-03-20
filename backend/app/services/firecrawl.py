@@ -6,12 +6,20 @@ from app.config import settings
 
 
 def scrape_markdown(url: str) -> str | None:
+    data = scrape_page(url)
+    content = data.get("markdown") if data else None
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+    return None
+
+
+def scrape_page(url: str) -> dict | None:
     if not settings.firecrawl_api_key:
         return None
 
     payload = {
         "url": url,
-        "formats": ["markdown"],
+        "formats": [{"type": "markdown"}],
         "onlyMainContent": True,
         "blockAds": True,
         "storeInCache": True,
@@ -27,7 +35,4 @@ def scrape_markdown(url: str) -> str | None:
         response.raise_for_status()
         data = response.json()
 
-    content = data.get("data", {}).get("markdown")
-    if isinstance(content, str) and content.strip():
-        return content.strip()
-    return None
+    return data.get("data") or {}
