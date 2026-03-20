@@ -12,7 +12,7 @@ Plataforma ultra minimalista para noticias diarias de IA, con filtros, resúmene
 - (Opcional) claves de API para noticias y resumen
 
 ## Variables de entorno
-Copia `.env.example` a `.env` y completa los valores.
+Copia `.env.example` a `.env` y completa los valores. El frontend usa `NEXT_PUBLIC_API_URL` y el backend lee las credenciales de NewsAPI/OpenAI/SMTP desde ese mismo archivo.
 
 ## Desarrollo rápido (sin Docker)
 Backend:
