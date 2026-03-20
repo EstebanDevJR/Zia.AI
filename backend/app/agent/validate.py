@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -68,9 +68,9 @@ def build_graph():
                 [
                     (
                         "system",
-                        "Evalua si la pagina corresponde a la noticia. "
-                        "Responde solo JSON: {\\"valid\\": true/false, \\"context\\": \\"...\\"}. "
-                        "El contexto debe ser 2-3 frases sin inventar datos."
+                        'Evalua si la pagina corresponde a la noticia. '
+                        'Responde solo JSON: {"valid": true/false, "context": "..."}. '
+                        'El contexto debe ser 2-3 frases sin inventar datos.'
                     ),
                     (
                         "human",
