@@ -1,7 +1,14 @@
-﻿"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import ThemeToggle from "../components/ThemeToggle";
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Loader2,
+  ArrowRight,
+  ExternalLink,
+  Mail,
+  Shield
+} from 'lucide-react';
 
 type Article = {
   title: string;
@@ -15,325 +22,298 @@ type Article = {
   trust_score?: number | null;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-const LANG_OPTIONS = [
-  { label: "Español (ES)", value: "es-ES" },
-  { label: "Inglés (US)", value: "en-US" }
-];
-
-const IconFilter = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" />
-  </svg>
-);
-
-const IconMail = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M4 6h16v12H4z" />
-    <path d="M4 7l8 6 8-6" />
-  </svg>
-);
-
-const IconSpark = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M12 2l2.2 5.4L20 9l-5.8 1.6L12 16l-2.2-5.4L4 9l5.8-1.6L12 2z" />
-  </svg>
-);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function Dashboard() {
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [news, setNews] = useState<Article[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [summaryMap, setSummaryMap] = useState<Record<string, string>>({});
-  const [sendEmail, setSendEmail] = useState<string>("");
-  const [subEmail, setSubEmail] = useState<string>("");
-  const [subCategory, setSubCategory] = useState<string>("research");
-  const [lang, setLang] = useState<string>(LANG_OPTIONS[0].value);
-  const [message, setMessage] = useState<string>("");
-
-  const visibleNews = useMemo(() => news, [news]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [lang, setLang] = useState<string>('es-ES');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
+  const [summarizing, setSummarizing] = useState<Record<string, boolean>>({});
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [email, setEmail] = useState('');
+  const [subEmail, setSubEmail] = useState('');
+  const [subCategory, setSubCategory] = useState('');
 
   useEffect(() => {
-    const init = async () => {
+    const fetchCategories = async () => {
       try {
-        const catRes = await fetch(`${API_BASE}/categories`);
-        if (catRes.ok) {
-          const data = await catRes.json();
-          setCategories(data);
-          if (data.length > 0) {
-            setSubCategory(data[0]);
-          }
+        const res = await fetch(`${API_URL}/categories`);
+        if (!res.ok) throw new Error('Error');
+        const data = await res.json();
+        setCategories(data);
+        if (data.length > 0) {
+          setSelectedCategory(data[0]);
+          setSubCategory(data[0]);
         }
       } catch (err) {
         console.error(err);
       }
     };
-
-    init();
+    fetchCategories();
   }, []);
 
-  useEffect(() => {
-    const loadNews = async () => {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (selectedCategory !== "all") {
-        params.set("category", selectedCategory);
-      }
-      if (lang) {
-        params.set("lang", lang);
-      }
-      const url = `${API_BASE}/news${params.toString() ? `?${params}` : ""}`;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error("No se pudo cargar noticias");
-        }
-        const data = await res.json();
-        setNews(data.items || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadNews();
-  }, [selectedCategory, lang]);
-
-  const handleSummary = async (article: Article) => {
-    if (summaryMap[article.url]) return;
+  const fetchNews = useCallback(async () => {
+    if (!selectedCategory) return;
+    setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/summary`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ article })
-      });
+      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}`);
+      if (!res.ok) throw new Error('Error');
       const data = await res.json();
-      setSummaryMap((prev) => ({ ...prev, [article.url]: data.summary }));
+      setArticles(data.items);
     } catch (err) {
       console.error(err);
+      showStatus('error', 'Error loading news.');
+    } finally {
+      setLoading(false);
     }
+  }, [selectedCategory, lang]);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
+
+  const showStatus = (type: 'success' | 'error', message: string) => {
+    setStatus({ type, message });
+    setTimeout(() => setStatus(null), 3000);
   };
 
-  const handleSend = async (article: Article) => {
-    if (!sendEmail) {
-      setMessage("Ingresa tu correo para enviar la noticia.");
-      return;
-    }
+  const generateSummary = async (article: Article) => {
+    if (summaries[article.url]) return;
+    setSummarizing(prev => ({ ...prev, [article.url]: true }));
     try {
-      const res = await fetch(`${API_BASE}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: sendEmail, article })
+      const res = await fetch(`${API_URL}/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article }),
       });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "No se pudo enviar");
-      }
-      setMessage("Noticia en cola para envío.");
-    } catch (err: any) {
-      setMessage(err.message || "Error al enviar.");
-    }
-  };
-
-  const handleSubscribe = async () => {
-    if (!subEmail) {
-      setMessage("Ingresa tu correo para suscribirte.");
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: subEmail, category: subCategory })
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "No se pudo suscribir");
-      }
+      if (!res.ok) throw new Error('Error');
       const data = await res.json();
-      if (data.confirmed) {
-        setMessage("Suscripción activa. Recibirás noticias diarias.");
-      } else {
-        setMessage("Revisa tu correo para confirmar la suscripción.");
-      }
-    } catch (err: any) {
-      setMessage(err.message || "Error al suscribirte.");
+      setSummaries(prev => ({ ...prev, [article.url]: data.summary }));
+    } catch (err) {
+      showStatus('error', 'Summary failed.');
+    } finally {
+      setSummarizing(prev => ({ ...prev, [article.url]: false }));
+    }
+  };
+
+  const sendByEmail = async (article: Article) => {
+    if (!email) {
+      showStatus('error', 'Enter email first.');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, article }),
+      });
+      if (!res.ok) throw new Error('Error');
+      showStatus('success', 'Sent.');
+    } catch (err) {
+      showStatus('error', 'Send failed.');
+    }
+  };
+
+  const subscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subEmail || !subCategory) return;
+    try {
+      const res = await fetch(`${API_URL}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: subEmail, category: subCategory }),
+      });
+      if (!res.ok) throw new Error('Error');
+      const data = await res.json();
+      showStatus('success', data.confirmed ? 'Subscribed.' : 'Check email.');
+      setSubEmail('');
+    } catch (err) {
+      showStatus('error', 'Subscription failed.');
     }
   };
 
   return (
-    <main>
-      <a className="skip-link" href="#dashboard">
-        Saltar al contenido
-      </a>
-      <div className="page">
-        <div className="container" id="dashboard">
-          <nav className="nav glass card reveal">
-            <div className="logo">
-              <div className="logo-icon">Z</div>
-              <span>Zia.AI Dashboard</span>
-              <span className="badge floating">Actualizado hoy</span>
-            </div>
-            <div className="nav-actions">
-              <a className="button ghost" href="/">
-                Volver al inicio
-              </a>
-              <ThemeToggle />
-            </div>
-          </nav>
+    <div className="max-w-5xl mx-auto py-12 animate-fade">
+      {/* Status */}
+      <div aria-live="polite" className="fixed bottom-12 right-12 z-50">
+        <AnimatePresence>
+          {status && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="px-6 py-3 border border-black dark:border-white bg-white dark:bg-black font-bold uppercase text-xs tracking-widest"
+            >
+              {status.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-          <section className="section-grid">
-            <div className="glass card reveal" style={{ animationDelay: "80ms" }}>
-              <h3 className="card-title">Filtros inteligentes</h3>
-              <p className="subtitle">Explora por categoría y lenguaje.</p>
-              <div className="filters" aria-label="Filtros de categoría">
-                <button
-                  className={`chip ${selectedCategory === "all" ? "active" : ""}`}
-                  onClick={() => setSelectedCategory("all")}
-                  type="button"
-                >
-                  Todas
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    className={`chip ${selectedCategory === cat ? "active" : ""}`}
-                    onClick={() => setSelectedCategory(cat)}
-                    type="button"
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-              <div style={{ marginTop: "12px" }}>
-                <label className="subtitle" htmlFor="lang">
-                  Idioma
-                </label>
-                <select
-                  className="input"
-                  id="lang"
-                  value={lang}
-                  onChange={(event) => setLang(event.target.value)}
-                >
-                  {LANG_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      <header className="mb-24">
+        <h1 className="text-4xl font-bold tracking-tighter uppercase mb-2">Feed</h1>
+        <div className="h-px bg-black dark:bg-white w-12" />
+      </header>
 
-            <div className="glass card reveal" style={{ animationDelay: "120ms" }}>
-              <h3 className="card-title">Suscripción diaria</h3>
-              <p className="subtitle">Recibe solo el tipo de noticias que te interesa.</p>
-              <input
-                className="input"
-                placeholder="Tu correo"
-                type="email"
-                value={subEmail}
-                onChange={(event) => setSubEmail(event.target.value)}
-              />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-24">
+        <div className="space-y-24">
+          {/* Controls */}
+          <div className="flex flex-wrap gap-12 text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">
+            <div className="flex items-center gap-4">
+              <span>Category</span>
               <select
-                className="input"
-                value={subCategory}
-                onChange={(event) => setSubCategory(event.target.value)}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 p-0 cursor-pointer uppercase"
               >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
-              <button className="button primary" onClick={handleSubscribe} type="button">
-                Suscribirme
-              </button>
             </div>
-          </section>
-
-          <section className="glass card reveal" style={{ animationDelay: "160ms" }}>
-            <div className="meta">
-              <span className="meta-pill"><span className="icon" aria-hidden="true"><IconMail /></span> Envío directo</span>
-              <span className="meta-pill"><span className="icon" aria-hidden="true"><IconSpark /></span> Resumen inmediato</span>
-            </div>
-            <h3 className="card-title">Envía una noticia a tu correo</h3>
-            <p className="subtitle">Ideal para compartir con tu equipo o archivar insights.</p>
-            <input
-              className="input"
-              placeholder="correo@dominio.com"
-              type="email"
-              value={sendEmail}
-              onChange={(event) => setSendEmail(event.target.value)}
-            />
-            {message ? (
-              <p className="notification" role="status" aria-live="polite">
-                {message}
-              </p>
-            ) : null}
-          </section>
-
-          <section className="glass card reveal" style={{ animationDelay: "200ms" }}>
-            <div className="meta">
-              <span className="meta-pill"><span className="icon" aria-hidden="true"><IconFilter /></span> Curado</span>
-            </div>
-            <h3 className="card-title">Noticias de hoy</h3>
-            <p className="subtitle">Siempre incluye el enlace original para verificar la fuente.</p>
-            {loading ? <p className="notification">Cargando...</p> : null}
-          </section>
-
-          <section className="news-grid" aria-busy={loading}>
-            {visibleNews.map((article, index) => (
-              <article
-                className="glass card card-lift reveal"
-                style={{ animationDelay: `${240 + index * 40}ms` }}
-                key={article.url}
+            <div className="flex items-center gap-4">
+              <span>Language</span>
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 p-0 cursor-pointer uppercase"
               >
-                <div className="meta">
-                  <span>{article.source_domain || article.source}</span>
-                  {article.published_at ? (
-                    <span>{new Date(article.published_at).toLocaleString()}</span>
-                  ) : null}
-                  {article.trust_score !== null && article.trust_score !== undefined ? (
-                    <span className="meta-pill">
-                      Confianza {Math.round(article.trust_score * 100)}%
-                    </span>
-                  ) : null}
-                </div>
-                <h2 className="card-title">{article.title}</h2>
-                <p className="subtitle">{article.description}</p>
-                <div className="actions">
-                  <a className="button" href={article.url} target="_blank" rel="noreferrer">
-                    Ver fuente original
-                  </a>
-                  <button
-                    className="button"
-                    onClick={() => handleSummary(article)}
-                    type="button"
-                  >
-                    Generar resumen
-                  </button>
-                  <button
-                    className="button primary"
-                    onClick={() => handleSend(article)}
-                    type="button"
-                  >
-                    Enviar por correo
-                  </button>
-                </div>
-                {summaryMap[article.url] ? (
-                  <div className="glass card">
-                    <strong>Resumen</strong>
-                    <p className="subtitle">{summaryMap[article.url]}</p>
+                <option value="es-ES">ES</option>
+                <option value="en-US">EN</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Articles */}
+          <div className="space-y-32">
+            {loading ? (
+              <div className="flex items-center gap-4 opacity-40">
+                <Loader2 className="animate-spin" size={16} />
+                <span className="text-xs uppercase tracking-widest">Loading...</span>
+              </div>
+            ) : (
+              articles.map((article) => (
+                <article key={article.url} className="group">
+                  <div className="flex flex-col gap-8">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] opacity-40">
+                      <div className="flex items-center gap-4">
+                        <span>{article.source_domain || article.source}</span>
+                        <span>/</span>
+                        <span>{article.published_at ? new Date(article.published_at).toLocaleDateString() : 'Now'}</span>
+                      </div>
+                      {article.trust_score && (
+                        <div className="flex items-center gap-2">
+                          <Shield size={10} />
+                          <span>{Math.round(article.trust_score * 100)}%</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h2 className="text-3xl font-bold tracking-tight leading-tight group-hover:underline underline-offset-8 decoration-1">
+                      {article.title}
+                    </h2>
+                    
+                    <p className="opacity-60 text-sm leading-relaxed max-w-2xl">
+                      {article.description}
+                    </p>
+
+                    <AnimatePresence>
+                      {summaries[article.url] && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="p-8 border border-black dark:border-white text-sm leading-relaxed"
+                        >
+                          <span className="font-bold uppercase text-[10px] tracking-widest block mb-4">Summary</span>
+                          {summaries[article.url]}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="flex flex-wrap gap-8 pt-4">
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:opacity-100 opacity-40 transition-opacity"
+                      >
+                        Source <ExternalLink size={10} />
+                      </a>
+                      <button
+                        onClick={() => generateSummary(article)}
+                        disabled={summarizing[article.url] || !!summaries[article.url]}
+                        className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:opacity-100 opacity-40 transition-opacity disabled:opacity-20"
+                      >
+                        {summarizing[article.url] ? '...' : summaries[article.url] ? 'Done' : 'Summarize'}
+                      </button>
+                      <button
+                        onClick={() => sendByEmail(article)}
+                        className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:opacity-100 opacity-40 transition-opacity"
+                      >
+                        Send <Mail size={10} />
+                      </button>
+                    </div>
                   </div>
-                ) : null}
-              </article>
-            ))}
-          </section>
+                </article>
+              ))
+            )}
+          </div>
         </div>
+
+        {/* Sidebar */}
+        <aside className="space-y-24">
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 opacity-40">Subscribe</h3>
+            <form onSubmit={subscribe} className="space-y-8">
+              <input
+                type="email"
+                placeholder="EMAIL"
+                required
+                value={subEmail}
+                onChange={(e) => setSubEmail(e.target.value)}
+                className="w-full bg-transparent border-b border-black dark:border-white py-2 text-xs outline-none uppercase tracking-widest"
+              />
+              <select
+                value={subCategory}
+                onChange={(e) => setSubCategory(e.target.value)}
+                className="w-full bg-transparent border-b border-black dark:border-white py-2 text-xs outline-none uppercase tracking-widest"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="btn-minimal-inverse w-full text-[10px] font-bold uppercase tracking-widest"
+              >
+                Join
+              </button>
+            </form>
+          </section>
+
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 opacity-40">Destination</h3>
+            <input
+              type="email"
+              placeholder="TARGET EMAIL"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-transparent border-b border-black dark:border-white py-2 text-xs outline-none uppercase tracking-widest"
+            />
+          </section>
+
+          <section className="pt-12 border-t border-black dark:border-white">
+            <p className="text-[10px] opacity-40 leading-relaxed uppercase tracking-widest">
+              Strict verification. <br />
+              Zero noise. <br />
+              Pure information.
+            </p>
+          </section>
+        </aside>
       </div>
-    </main>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ COPY frontend/package.json /app/package.json
 RUN npm install
 
 COPY frontend /app
+RUN mkdir -p /app/public
 RUN npm run build
 
 FROM node:20-alpine AS runner

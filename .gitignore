@@ -21,6 +21,7 @@ Thumbs.db
 # Data
 /data/
 *.db
+frontend_antiguo/
 
 # Logs
 *.log

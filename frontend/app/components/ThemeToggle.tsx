@@ -1,38 +1,40 @@
-﻿"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-
-const THEME_KEY = "zia-theme";
-
-type Theme = "light" | "dark";
+import { useEffect, useState } from 'react';
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const nextTheme = stored ?? (prefersDark ? "dark" : "light");
-    setTheme(nextTheme);
-    document.documentElement.setAttribute("data-theme", nextTheme);
+    const savedTheme = localStorage.getItem('zia-theme') as 'light' | 'dark';
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+    
+    document.documentElement.setAttribute('data-theme', initialTheme);
+    
+    setTimeout(() => {
+      setTheme(initialTheme);
+      setMounted(true);
+    }, 0);
   }, []);
 
-  const toggle = () => {
-    const nextTheme: Theme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    window.localStorage.setItem(THEME_KEY, nextTheme);
+  if (!mounted) return <div className="w-12 h-6" />;
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('zia-theme', newTheme);
   };
 
   return (
     <button
-      className="button"
-      onClick={toggle}
-      type="button"
-      aria-pressed={theme === "dark"}
-      aria-label="Cambiar tema"
+      onClick={toggleTheme}
+      className="text-[10px] font-bold uppercase tracking-widest hover:underline underline-offset-4"
+      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
     >
-      Tema: {theme === "light" ? "Claro" : "Oscuro"}
+      {theme === 'light' ? 'Dark' : 'Light'}
     </button>
   );
 }
