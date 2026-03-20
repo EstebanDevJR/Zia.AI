@@ -41,8 +41,11 @@ def build_graph():
         data = scrape_page(state["url"])
         if data:
             fetched_title = data.get("metadata", {}).get("title") or data.get("title")
+            summary = data.get("summary")
             markdown = data.get("markdown")
-            if isinstance(markdown, str):
+            if isinstance(summary, str) and summary.strip():
+                fetched_text = _compact(summary)
+            elif isinstance(markdown, str):
                 fetched_text = _compact(markdown)
             status = data.get("metadata", {}).get("statusCode")
             ok = bool(markdown) and (status is None or status < 400)

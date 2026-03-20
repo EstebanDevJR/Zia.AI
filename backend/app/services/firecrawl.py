@@ -19,7 +19,7 @@ def scrape_page(url: str) -> dict | None:
 
     payload = {
         "url": url,
-        "formats": [{"type": "markdown"}],
+        "formats": [{"type": "markdown"}, {"type": "summary"}],
         "onlyMainContent": True,
         "blockAds": True,
         "storeInCache": True,

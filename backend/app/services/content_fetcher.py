@@ -56,6 +56,44 @@ def fetch_html_context(url: str, timeout: int = 12) -> tuple[str | None, str | N
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
 
-    excerpt = text[:1200] if text else None
+    cleaned = _clean_boilerplate(text)
+    excerpt = _pick_sentences(cleaned)
 
     return title, excerpt, response.status_code, content_type
+
+
+def _clean_boilerplate(text: str) -> str:
+    patterns = [
+        r"skip to (main )?content",
+        r"skip to navigation",
+        r"sign in",
+        r"subscribe",
+        r"advertisement",
+        r"cookie(s)?",
+        r"privacy policy",
+        r"terms of service",
+    ]
+    cleaned = text
+    for pattern in patterns:
+        cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _pick_sentences(text: str, max_chars: int = 1200) -> str | None:
+    if not text:
+        return None
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    picked: list[str] = []
+    total = 0
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if len(sentence) < 40:
+            continue
+        picked.append(sentence)
+        total += len(sentence) + 1
+        if total >= max_chars or len(picked) >= 3:
+            break
+    if picked:
+        return " ".join(picked)
+    return text[:max_chars].strip()
