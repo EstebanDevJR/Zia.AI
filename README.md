@@ -11,6 +11,9 @@ Plataforma ultra minimalista para noticias diarias de IA, con filtros, resúmene
 - Docker y Docker Compose
 - (Opcional) claves de API para noticias y resumen
 
+## Fuentes confiables
+La API consulta NewsAPI con una lista de fuentes permitidas (`NEWS_ALLOWED_SOURCES`). La UI siempre enlaza a la fuente original.
+
 ## Variables de entorno
 Copia `.env.example` a `.env` y completa los valores. El frontend usa `NEXT_PUBLIC_API_URL` y el backend lee las credenciales de NewsAPI/OpenAI/SMTP desde ese mismo archivo.
 
