@@ -25,7 +25,13 @@ export default function ThemeToggle() {
   };
 
   return (
-    <button className="button" onClick={toggle} type="button">
+    <button
+      className="button"
+      onClick={toggle}
+      type="button"
+      aria-pressed={theme === "dark"}
+      aria-label="Cambiar tema"
+    >
       Tema: {theme === "light" ? "Claro" : "Oscuro"}
     </button>
   );
