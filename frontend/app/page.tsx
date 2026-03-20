@@ -22,6 +22,38 @@ const LANG_OPTIONS = [
   { label: "Inglés (US)", value: "en-US" }
 ];
 
+const IconSpark = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M12 2l2.2 5.4L20 9l-5.8 1.6L12 16l-2.2-5.4L4 9l5.8-1.6L12 2z" />
+  </svg>
+);
+
+const IconShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M12 3l7 3v6c0 5-3.8 8.6-7 9-3.2-.4-7-4-7-9V6l7-3z" />
+  </svg>
+);
+
+const IconMail = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M4 6h16v12H4z" />
+    <path d="M4 7l8 6 8-6" />
+  </svg>
+);
+
+const IconFilter = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" />
+  </svg>
+);
+
+const IconArrow = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M5 12h14" />
+    <path d="M13 6l6 6-6 6" />
+  </svg>
+);
+
 export default function Home() {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -147,22 +179,104 @@ export default function Home() {
 
   return (
     <main>
-      <div className="container">
-        <header className="header">
-          <div className="header-top">
-            <div>
-              <h1 className="title">Zia.AI</h1>
+      <div className="page">
+        <div className="container">
+          <nav className="nav glass card reveal">
+            <div className="logo">
+              <div className="logo-icon">Z</div>
+              <span>Zia.AI</span>
+              <span className="badge floating">Live · IA diaria</span>
+            </div>
+            <div className="nav-actions">
+              <a className="button ghost" href="#news">
+                Explorar
+              </a>
+              <ThemeToggle />
+            </div>
+          </nav>
+
+          <section className="hero">
+            <div className="glass card card-lift reveal" style={{ animationDelay: "80ms" }}>
+              <span className="badge">Pulse de IA para startups</span>
+              <h1 className="hero-title">
+                Noticias de IA en un vistazo <span>verificado</span>.
+              </h1>
               <p className="subtitle">
-                Noticias diarias de inteligencia artificial, verificables y filtradas.
-                Resúmenes rápidos, envíos por correo y suscripciones por categoría.
+                Seleccionamos fuentes confiables, las organizamos por categoría y generamos
+                resúmenes claros para que tomes decisiones rápido.
+              </p>
+              <div className="hero-actions">
+                <a className="button primary" href="#news">
+                  Ver noticias <span className="icon"><IconArrow /></span>
+                </a>
+                <a className="button" href="#suscripcion">
+                  Suscribirme
+                </a>
+              </div>
+            </div>
+
+            <div className="glass card card-lift reveal" style={{ animationDelay: "140ms" }}>
+              <h3 className="card-title">Cómo funciona</h3>
+              <div className="meta">
+                <span className="meta-pill"><span className="icon"><IconShield /></span> Fuentes verificadas</span>
+                <span className="meta-pill"><span className="icon"><IconSpark /></span> Resumen instantáneo</span>
+                <span className="meta-pill"><span className="icon"><IconMail /></span> Envíos diarios</span>
+              </div>
+              <p className="subtitle">
+                Firecrawl + DuckDuckGo como respaldo, con filtros por dominios de confianza
+                y enlaces originales para que puedas validar cada nota.
+              </p>
+              <div className="stats">
+                <div className="stat">
+                  <div className="stat-value">20+</div>
+                  <div className="stat-label">Fuentes confiables</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-value">3-4</div>
+                  <div className="stat-label">Frases por resumen</div>
+                </div>
+                <div className="stat">
+                  <div className="stat-value">100%</div>
+                  <div className="stat-label">Links verificables</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="feature-grid">
+            <div className="glass card card-lift reveal" style={{ animationDelay: "200ms" }}>
+              <div className="meta">
+                <span className="meta-pill"><span className="icon"><IconFilter /></span> Curación inteligente</span>
+              </div>
+              <h3 className="card-title">Filtra por tipo de noticia</h3>
+              <p className="subtitle">
+                Investigación, industria, policy, seguridad o herramientas. Todo organizado
+                para tu contexto.
               </p>
             </div>
-            <ThemeToggle />
-          </div>
+            <div className="glass card card-lift reveal" style={{ animationDelay: "240ms" }}>
+              <div className="meta">
+                <span className="meta-pill"><span className="icon"><IconSpark /></span> Resúmenes accionables</span>
+              </div>
+              <h3 className="card-title">Resumen automático</h3>
+              <p className="subtitle">
+                Sintetizamos el contenido para que tengas claridad sin perder tiempo.
+              </p>
+            </div>
+            <div className="glass card card-lift reveal" style={{ animationDelay: "280ms" }}>
+              <div className="meta">
+                <span className="meta-pill"><span className="icon"><IconMail /></span> Envío diario</span>
+              </div>
+              <h3 className="card-title">Newsletter a tu ritmo</h3>
+              <p className="subtitle">
+                Suscríbete a una sola categoría o cambia cuando quieras.
+              </p>
+            </div>
+          </section>
 
-          <div className="section-grid">
-            <div className="glass card">
-              <h3>Filtra por tipo</h3>
+          <div className="section-grid" id="suscripcion">
+            <div className="glass card reveal" style={{ animationDelay: "320ms" }}>
+              <h3 className="card-title">Filtra por tipo e idioma</h3>
               <div className="filters">
                 <button
                   className={`chip ${selectedCategory === "all" ? "active" : ""}`}
@@ -198,8 +312,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="glass card">
-              <h3>Suscripción diaria</h3>
+            <div className="glass card reveal" style={{ animationDelay: "360ms" }}>
+              <h3 className="card-title">Suscripción diaria</h3>
               <p className="subtitle">Recibe solo el tipo de noticias que te interesa.</p>
               <input
                 className="input"
@@ -225,8 +339,9 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="glass card">
-            <h3>Envía una noticia a tu correo</h3>
+          <div className="glass card reveal" style={{ animationDelay: "400ms" }}>
+            <h3 className="card-title">Envía una noticia a tu correo</h3>
+            <p className="subtitle">Ideal para compartir con tu equipo o archivar insights.</p>
             <input
               className="input"
               placeholder="correo@dominio.com"
@@ -236,60 +351,64 @@ export default function Home() {
             />
             {message ? <p className="subtitle">{message}</p> : null}
           </div>
-        </header>
 
-        <section className="section-grid">
-          <div className="glass card">
-            <h3>Noticias de hoy</h3>
+          <section className="glass card reveal" id="news" style={{ animationDelay: "440ms" }}>
+            <h3 className="card-title">Noticias de hoy</h3>
             <p className="subtitle">
               Siempre incluye el enlace original para verificar la fuente.
             </p>
             {loading ? <p>Cargando...</p> : null}
-          </div>
-        </section>
+          </section>
 
-        <section className="section-grid">
-          {visibleNews.map((article) => (
-            <article className="glass card" key={article.url}>
-              <div className="meta">
-                <span>{article.source_domain || article.source}</span>
-                {article.published_at ? (
-                  <span>{new Date(article.published_at).toLocaleString()}</span>
-                ) : null}
-                {article.trust_score !== null && article.trust_score !== undefined ? (
-                  <span>Confianza: {Math.round(article.trust_score * 100)}%</span>
-                ) : null}
-              </div>
-              <h2 className="card-title">{article.title}</h2>
-              <p className="subtitle">{article.description}</p>
-              <div className="actions">
-                <a className="button" href={article.url} target="_blank" rel="noreferrer">
-                  Ver fuente original
-                </a>
-                <button
-                  className="button"
-                  onClick={() => handleSummary(article)}
-                  type="button"
-                >
-                  Generar resumen
-                </button>
-                <button
-                  className="button primary"
-                  onClick={() => handleSend(article)}
-                  type="button"
-                >
-                  Enviar por correo
-                </button>
-              </div>
-              {summaryMap[article.url] ? (
-                <div className="glass card">
-                  <strong>Resumen</strong>
-                  <p className="subtitle">{summaryMap[article.url]}</p>
+          <section className="news-grid">
+            {visibleNews.map((article, index) => (
+              <article
+                className="glass card card-lift reveal"
+                style={{ animationDelay: `${480 + index * 40}ms` }}
+                key={article.url}
+              >
+                <div className="meta">
+                  <span>{article.source_domain || article.source}</span>
+                  {article.published_at ? (
+                    <span>{new Date(article.published_at).toLocaleString()}</span>
+                  ) : null}
+                  {article.trust_score !== null && article.trust_score !== undefined ? (
+                    <span className="meta-pill">
+                      Confianza {Math.round(article.trust_score * 100)}%
+                    </span>
+                  ) : null}
                 </div>
-              ) : null}
-            </article>
-          ))}
-        </section>
+                <h2 className="card-title">{article.title}</h2>
+                <p className="subtitle">{article.description}</p>
+                <div className="actions">
+                  <a className="button" href={article.url} target="_blank" rel="noreferrer">
+                    Ver fuente original
+                  </a>
+                  <button
+                    className="button"
+                    onClick={() => handleSummary(article)}
+                    type="button"
+                  >
+                    Generar resumen
+                  </button>
+                  <button
+                    className="button primary"
+                    onClick={() => handleSend(article)}
+                    type="button"
+                  >
+                    Enviar por correo
+                  </button>
+                </div>
+                {summaryMap[article.url] ? (
+                  <div className="glass card">
+                    <strong>Resumen</strong>
+                    <p className="subtitle">{summaryMap[article.url]}</p>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </section>
+        </div>
       </div>
     </main>
   );
