@@ -18,7 +18,7 @@ cd Zia.AI
 cp .env.example .env
 nano .env
 ```
-Completa al menos `FIRECRAWL_API_KEY`, `OPENAI_API_KEY` y las credenciales SMTP.
+Completa al menos `FIRECRAWL_API_KEY`, `OPENAI_API_KEY` y las credenciales SMTP. Si quieres colas de trabajo, asegúrate de configurar `REDIS_URL`.
 
 ## 4) Levantar contenedores
 ```bash
@@ -27,6 +27,7 @@ docker compose up -d --build
 
 Frontend: `http://IP_PUBLICA:3000`
 Backend: `http://IP_PUBLICA:8000/health`
+Métricas: `http://IP_PUBLICA:8000/metrics`
 
 ## 5) Persistencia
 La base de datos SQLite vive en el volumen `backend_data`.
