@@ -11,9 +11,16 @@ type Article = {
   published_at?: string | null;
   image_url?: string | null;
   category?: string | null;
+  source_domain?: string | null;
+  trust_score?: number | null;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const LANG_OPTIONS = [
+  { label: "Español (ES)", value: "es-ES" },
+  { label: "Inglés (US)", value: "en-US" }
+];
 
 export default function Home() {
   const [categories, setCategories] = useState<string[]>([]);
@@ -24,6 +31,7 @@ export default function Home() {
   const [sendEmail, setSendEmail] = useState<string>("");
   const [subEmail, setSubEmail] = useState<string>("");
   const [subCategory, setSubCategory] = useState<string>("research");
+  const [lang, setLang] = useState<string>(LANG_OPTIONS[0].value);
   const [message, setMessage] = useState<string>("");
 
   const visibleNews = useMemo(() => news, [news]);
@@ -54,6 +62,9 @@ export default function Home() {
       if (selectedCategory !== "all") {
         params.set("category", selectedCategory);
       }
+      if (lang) {
+        params.set("lang", lang);
+      }
       const url = `${API_BASE}/news${params.toString() ? `?${params}` : ""}`;
       try {
         const res = await fetch(url);
@@ -70,7 +81,7 @@ export default function Home() {
     };
 
     loadNews();
-  }, [selectedCategory]);
+  }, [selectedCategory, lang]);
 
   const handleSummary = async (article: Article) => {
     if (summaryMap[article.url]) return;
@@ -102,7 +113,7 @@ export default function Home() {
         const errData = await res.json();
         throw new Error(errData.detail || "No se pudo enviar");
       }
-      setMessage("Noticia enviada.");
+      setMessage("Noticia en cola para envío.");
     } catch (err: any) {
       setMessage(err.message || "Error al enviar.");
     }
@@ -123,7 +134,12 @@ export default function Home() {
         const errData = await res.json();
         throw new Error(errData.detail || "No se pudo suscribir");
       }
-      setMessage("Suscripción activa. Recibirás noticias diarias.");
+      const data = await res.json();
+      if (data.confirmed) {
+        setMessage("Suscripción activa. Recibirás noticias diarias.");
+      } else {
+        setMessage("Revisa tu correo para confirmar la suscripción.");
+      }
     } catch (err: any) {
       setMessage(err.message || "Error al suscribirte.");
     }
@@ -165,6 +181,20 @@ export default function Home() {
                     {cat}
                   </button>
                 ))}
+              </div>
+              <div style={{ marginTop: "12px" }}>
+                <label className="subtitle">Idioma</label>
+                <select
+                  className="input"
+                  value={lang}
+                  onChange={(event) => setLang(event.target.value)}
+                >
+                  {LANG_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -222,9 +252,12 @@ export default function Home() {
           {visibleNews.map((article) => (
             <article className="glass card" key={article.url}>
               <div className="meta">
-                <span>{article.source}</span>
+                <span>{article.source_domain || article.source}</span>
                 {article.published_at ? (
                   <span>{new Date(article.published_at).toLocaleString()}</span>
+                ) : null}
+                {article.trust_score !== null && article.trust_score !== undefined ? (
+                  <span>Confianza: {Math.round(article.trust_score * 100)}%</span>
                 ) : null}
               </div>
               <h2 className="card-title">{article.title}</h2>
