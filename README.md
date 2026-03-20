@@ -9,13 +9,13 @@ Plataforma ultra minimalista para noticias diarias de IA, con filtros, resúmene
 
 ## Requisitos
 - Docker y Docker Compose
-- (Opcional) claves de API para noticias y resumen
+- (Opcional) claves de API para Firecrawl y resumen
 
 ## Fuentes confiables
-La API consulta NewsAPI con una lista de fuentes permitidas (`NEWS_ALLOWED_SOURCES`). La UI siempre enlaza a la fuente original.
+La API consulta Firecrawl Search con una lista de dominios permitidos (`FIRECRAWL_ALLOWED_DOMAINS`). La UI siempre enlaza a la fuente original.
 
 ## Variables de entorno
-Copia `.env.example` a `.env` y completa los valores. El frontend usa `NEXT_PUBLIC_API_URL` y el backend lee las credenciales de NewsAPI/OpenAI/SMTP desde ese mismo archivo.
+Copia `.env.example` a `.env` y completa los valores. El frontend usa `NEXT_PUBLIC_API_URL` y el backend lee las credenciales de Firecrawl/OpenAI/SMTP desde ese mismo archivo.
 
 ## Desarrollo rápido (sin Docker)
 Backend:

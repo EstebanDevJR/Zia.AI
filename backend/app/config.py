@@ -8,13 +8,13 @@ class Settings(BaseSettings):
     app_name: str = "Zia.AI API"
     database_url: str = Field(default="sqlite:///./data/app.db", alias="DATABASE_URL")
 
-    news_api_key: str | None = Field(default=None, alias="NEWS_API_KEY")
-    news_api_base: str = Field(default="https://newsapi.org/v2", alias="NEWS_API_BASE")
-    news_allowed_sources: str = Field(
+    firecrawl_api_key: str | None = Field(default=None, alias="FIRECRAWL_API_KEY")
+    firecrawl_base: str = Field(default="https://api.firecrawl.dev/v2", alias="FIRECRAWL_BASE")
+    firecrawl_allowed_domains: str = Field(
         default=
-        "the-verge,wired,techcrunch,ars-technica,mit-technology-review,"
-        "reuters,associated-press,bbc-news,the-guardian-uk,the-new-york-times",
-        alias="NEWS_ALLOWED_SOURCES",
+        "theverge.com,wired.com,techcrunch.com,arstechnica.com,technologyreview.com,"
+        "reuters.com,apnews.com,bbc.com,theguardian.com,nytimes.com",
+        alias="FIRECRAWL_ALLOWED_DOMAINS",
     )
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

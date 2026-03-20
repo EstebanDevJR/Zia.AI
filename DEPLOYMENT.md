@@ -18,7 +18,7 @@ cd Zia.AI
 cp .env.example .env
 nano .env
 ```
-Completa al menos `NEWS_API_KEY`, `OPENAI_API_KEY` y las credenciales SMTP.
+Completa al menos `FIRECRAWL_API_KEY`, `OPENAI_API_KEY` y las credenciales SMTP.
 
 ## 4) Levantar contenedores
 ```bash

@@ -14,6 +14,7 @@ from app.schemas import (
     SummaryResponse,
 )
 from app.services.emailer import send_email
+from app.services.firecrawl import scrape_markdown
 from app.services.news import CATEGORY_QUERIES, fetch_news
 from app.services.scheduler import start_scheduler
 from app.services.summarize import summarize_text
@@ -58,7 +59,16 @@ def summary(payload: SummaryRequest, session: Session = Depends(get_session)) ->
     if cached:
         return SummaryResponse(summary=cached.summary)
 
-    text = f"{payload.article.title}\n{payload.article.description or ''}\nFuente: {payload.article.source}"
+    scraped = scrape_markdown(payload.article.url)
+    if scraped:
+        trimmed = scraped[:6000]
+        text = (
+            f"{payload.article.title}\n"
+            f"{payload.article.description or ''}\n\n"
+            f"Contenido:\n{trimmed}"
+        )
+    else:
+        text = f"{payload.article.title}\n{payload.article.description or ''}\nFuente: {payload.article.source}"
     summary_text = summarize_text(text)
 
     cache = SummaryCache(url=payload.article.url, summary=summary_text)
