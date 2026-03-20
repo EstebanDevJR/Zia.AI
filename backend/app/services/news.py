@@ -8,6 +8,7 @@ import httpx
 
 from app.config import settings
 from app.schemas import Article
+from app.services.ddg import search_ddg
 
 CATEGORY_QUERIES = {
     "research": "AI research OR machine learning paper OR arXiv",
@@ -76,7 +77,7 @@ def _with_domain_filter(query: str, allowed: list[str]) -> str:
 
 def fetch_news(category: str | None = None, q: str | None = None) -> list[Article]:
     if not settings.firecrawl_api_key:
-        return [item for item in SAMPLE_NEWS if not category or item.category == category]
+        return _fetch_ddg(category, q)
 
     allowed_domains = _allowed_domains()
     query = _build_query(category, q)
@@ -93,10 +94,13 @@ def fetch_news(category: str | None = None, q: str | None = None) -> list[Articl
         "Content-Type": "application/json",
     }
 
-    with httpx.Client(timeout=20) as client:
-        response = client.post(f"{settings.firecrawl_base}/search", json=payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+    try:
+        with httpx.Client(timeout=20) as client:
+            response = client.post(f"{settings.firecrawl_base}/search", json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.HTTPError:
+        return _fetch_ddg(category, q)
 
     results = _extract_results(data)
     items: list[Article] = []
@@ -125,6 +129,42 @@ def fetch_news(category: str | None = None, q: str | None = None) -> list[Articl
         items.append(item)
 
     return items
+
+
+def _fetch_ddg(category: str | None = None, q: str | None = None) -> list[Article]:
+    allowed_domains = _allowed_domains()
+    query = _build_query(category, q)
+    query = _with_domain_filter(query, allowed_domains)
+
+    try:
+        results = search_ddg(query=query, limit=20)
+    except httpx.HTTPError:
+        return [item for item in SAMPLE_NEWS if not category or item.category == category]
+
+    items: list[Article] = []
+    for result in results:
+        url = result.get("url")
+        if not url:
+            continue
+        if allowed_domains and not _is_allowed(url, allowed_domains):
+            continue
+
+        title = result.get("title") or "(Sin titulo)"
+        description = result.get("snippet")
+
+        items.append(
+            Article(
+                title=title,
+                description=description,
+                url=url,
+                source=_domain_from_url(url),
+                published_at=None,
+                image_url=None,
+                category=category,
+            )
+        )
+
+    return items or [item for item in SAMPLE_NEWS if not category or item.category == category]
 
 
 def _extract_results(payload: dict[str, Any]) -> list[dict[str, Any]]:

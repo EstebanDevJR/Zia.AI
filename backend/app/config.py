@@ -16,6 +16,14 @@ class Settings(BaseSettings):
         "reuters.com,apnews.com,bbc.com,theguardian.com,nytimes.com",
         alias="FIRECRAWL_ALLOWED_DOMAINS",
     )
+    ddg_base: str = Field(default="https://html.duckduckgo.com/html/", alias="DDG_BASE")
+    ddg_user_agent: str = Field(
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36",
+        alias="DDG_USER_AGENT",
+    )
+    ddg_accept_language: str = Field(default="es-ES,es;q=0.9,en;q=0.8", alias="DDG_ACCEPT_LANGUAGE")
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
