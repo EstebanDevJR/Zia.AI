@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     news_prefetch_enabled: bool = Field(default=True, alias="NEWS_PREFETCH_ENABLED")
     news_prefetch_interval_minutes: int = Field(default=30, alias="NEWS_PREFETCH_INTERVAL_MINUTES")
     news_prefetch_page_size: int = Field(default=25, alias="NEWS_PREFETCH_PAGE_SIZE")
+    classification_enabled: bool = Field(default=True, alias="CLASSIFICATION_ENABLED")
+    classification_use_llm: bool = Field(default=False, alias="CLASSIFICATION_USE_LLM")
+    classification_min_confidence: float = Field(default=0.45, alias="CLASSIFICATION_MIN_CONFIDENCE")
+    classification_force_llm_for_filters: bool = Field(
+        default=True, alias="CLASSIFICATION_FORCE_LLM_FOR_FILTERS"
+    )
+    classification_max_candidates: int = Field(default=12, alias="CLASSIFICATION_MAX_CANDIDATES")
 
     validation_enabled: bool = Field(default=True, alias="VALIDATION_ENABLED")
     validation_max: int = Field(default=20, alias="VALIDATION_MAX")

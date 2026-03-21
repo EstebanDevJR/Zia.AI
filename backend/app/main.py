@@ -21,7 +21,8 @@ from app.schemas import (
 from app.services.cache import cache_key, load_cache, persist_articles, purge_old_content, save_cache
 from app.services.emailer import send_email, smtp_configured
 from app.services.firecrawl import scrape_markdown
-from app.services.news import CATEGORY_QUERIES, get_news, upsert_subscription
+from app.services.categories import CATEGORY_QUERIES
+from app.services.news import get_news, upsert_subscription
 from app.services.observability import init_logging, log_event, metrics_app, metrics_middleware
 from app.services.queue import enqueue_job
 from app.services.rate_limit import check_rate_limit

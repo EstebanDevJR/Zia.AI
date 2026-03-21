@@ -10,17 +10,11 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.models import ArticleRecord
 from app.schemas import Article
+from app.services.categories import CATEGORY_HINTS, CATEGORY_QUERIES
+from app.services.classifier import classify_article
 from app.services.ddg import search_ddg
 from app.services.observability import EXTERNAL_CALLS, log_event
 from app.services.validator import validate_article
-
-CATEGORY_QUERIES = {
-    "research": "AI research OR machine learning paper OR arXiv",
-    "industry": "AI company OR product launch OR funding OR partnership",
-    "policy": "AI regulation OR policy OR government",
-    "security": "AI security OR safety OR risk",
-    "tools": "AI tools OR models OR platforms",
-}
 
 AI_KEYWORDS = [
     "ai",
@@ -44,55 +38,6 @@ AI_KEYWORDS = [
     "llama",
     "nvidia ai",
 ]
-
-CATEGORY_HINTS = {
-    "research": [
-        "research",
-        "paper",
-        "arxiv",
-        "benchmark",
-        "dataset",
-        "training",
-        "model",
-    ],
-    "industry": [
-        "startup",
-        "funding",
-        "company",
-        "acquisition",
-        "partnership",
-        "product",
-        "launch",
-    ],
-    "policy": [
-        "regulation",
-        "policy",
-        "government",
-        "law",
-        "legislation",
-        "regulator",
-        "compliance",
-    ],
-    "security": [
-        "security",
-        "safety",
-        "risk",
-        "alignment",
-        "misuse",
-        "red team",
-        "cyber",
-    ],
-    "tools": [
-        "tool",
-        "platform",
-        "api",
-        "sdk",
-        "assistant",
-        "workflow",
-        "plugin",
-        "feature",
-    ],
-}
 
 SAMPLE_NEWS = [
     Article(
@@ -240,7 +185,10 @@ def get_news(
         return items, has_more, True
 
     if fast:
-        raw_items = _fetch_raw(category=category, q=q, lang=lang, limit=_limit_for_page(page, page_size))
+        limit = _limit_for_page(page, page_size)
+        if category and settings.classification_force_llm_for_filters:
+            limit = min(limit, settings.classification_max_candidates)
+        raw_items = _fetch_raw(category=category, q=q, lang=lang, limit=limit)
         start = (page - 1) * page_size
         end = start + page_size
         return raw_items[start:end], len(raw_items) > end, False
@@ -321,7 +269,7 @@ def _fetch_raw(
             )
         )
 
-    return items
+    return _classify_and_filter(items, category)
 
 
 def _fetch_ddg(
@@ -373,7 +321,7 @@ def _fetch_ddg(
             )
         )
 
-    return items
+    return _classify_and_filter(items, category)
 
 
 def _validate_and_slice(
@@ -407,7 +355,15 @@ def _validate_and_slice(
                 continue
             if context and not _is_ai_related(context):
                 continue
-            if category and context and not _matches_category(context, category):
+            predicted, _ = classify_article(
+                item,
+                context=context,
+                force_llm=bool(category and settings.classification_force_llm_for_filters),
+                target_category=category,
+            )
+            if predicted:
+                item.category = predicted
+            if category and predicted != category:
                 continue
             item.context = context or item.description
             valid_items.append(item)
@@ -499,6 +455,24 @@ def _query_tokens(q: str | None) -> list[str]:
         return []
     tokens = [token.strip().lower() for token in q.split() if len(token.strip()) >= 3]
     return tokens[:6]
+
+
+def _classify_and_filter(items: list[Article], category: str | None) -> list[Article]:
+    if not settings.classification_enabled and not category:
+        return items
+    filtered: list[Article] = []
+    for item in items:
+        predicted, _ = classify_article(
+            item,
+            force_llm=bool(category and settings.classification_force_llm_for_filters),
+            target_category=category,
+        )
+        if predicted:
+            item.category = predicted
+        if category and predicted != category:
+            continue
+        filtered.append(item)
+    return filtered
 
 
 def new_tokens() -> tuple[str, str]:

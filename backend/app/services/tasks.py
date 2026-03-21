@@ -9,7 +9,8 @@ from app.db import engine
 from app.models import DigestLog, Subscription
 from app.services.emailer import send_email
 from app.services.cache import persist_articles, purge_old_content
-from app.services.news import CATEGORY_QUERIES, get_news, fetch_news
+from app.services.categories import CATEGORY_QUERIES
+from app.services.news import get_news, fetch_news
 from app.services.observability import log_event
 
 

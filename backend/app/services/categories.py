@@ -1,0 +1,58 @@
+CATEGORY_QUERIES = {
+    "research": "AI research OR machine learning paper OR arXiv",
+    "industry": "AI company OR product launch OR funding OR partnership",
+    "policy": "AI regulation OR policy OR government",
+    "security": "AI security OR safety OR risk",
+    "tools": "AI tools OR models OR platforms",
+}
+
+CATEGORY_HINTS = {
+    "research": [
+        "research",
+        "paper",
+        "arxiv",
+        "benchmark",
+        "dataset",
+        "training",
+        "model",
+    ],
+    "industry": [
+        "startup",
+        "funding",
+        "company",
+        "acquisition",
+        "partnership",
+        "product",
+        "launch",
+        "earnings",
+    ],
+    "policy": [
+        "regulation",
+        "policy",
+        "government",
+        "law",
+        "legislation",
+        "regulator",
+        "compliance",
+        "antitrust",
+    ],
+    "security": [
+        "security",
+        "safety",
+        "risk",
+        "alignment",
+        "misuse",
+        "red team",
+        "cyber",
+    ],
+    "tools": [
+        "tool",
+        "platform",
+        "api",
+        "sdk",
+        "assistant",
+        "workflow",
+        "plugin",
+        "feature",
+    ],
+}
