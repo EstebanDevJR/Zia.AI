@@ -35,7 +35,7 @@ def build_graph():
                 (
                     "system",
                     "Clasifica la noticia en una de estas categorias: research, industry, policy, security, tools, unknown. "
-                    "Responde solo JSON: {\"category\": \"...\", \"confidence\": 0.0-1.0}.",
+                    "Responde solo JSON: {{\"category\": \"...\", \"confidence\": 0.0-1.0}}.",
                 ),
                 (
                     "human",
