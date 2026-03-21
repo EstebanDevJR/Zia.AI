@@ -2,16 +2,16 @@ import Link from 'next/link';
 
 export default function LandingPage() {
   return (
-    <div className="max-w-4xl mx-auto py-24 animate-fade">
+    <div className="max-w-4xl mx-auto py-24 animate-fade" data-route="landing">
       <section className="mb-32">
         <h1 className="text-7xl md:text-9xl font-bold tracking-tighter mb-12 uppercase leading-[0.8]">
           Zia <br /> News
         </h1>
         <p className="text-xl max-w-lg mb-12 opacity-60 leading-relaxed">
-          Information without noise. A strictly minimalist news engine powered by intelligence.
+          Information without noise. A strictly minimalist AI news engine powered by intelligence.
         </p>
         <Link
-          href="/app"
+          href="/feed"
           className="btn-minimal-inverse text-lg font-bold uppercase tracking-widest"
         >
           Enter Dashboard
