@@ -43,7 +43,7 @@ def load_cache(session: Session, key: str) -> tuple[list[Article], bool] | None:
 def save_cache(session: Session, key: str, articles: list[Article], has_more: bool = False) -> None:
     payload = json.dumps(
         {
-            "items": [article.model_dump() for article in articles],
+            "items": [article.model_dump(mode="json") for article in articles],
             "has_more": has_more,
         }
     )

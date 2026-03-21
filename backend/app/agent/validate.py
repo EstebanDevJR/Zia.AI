@@ -46,9 +46,19 @@ def build_graph():
             if isinstance(summary, str) and summary.strip():
                 fetched_text = _compact(summary)
             elif isinstance(markdown, str):
-                fetched_text = _compact(markdown)
+                compact_markdown = _compact(markdown)
+                if _looks_like_boilerplate(compact_markdown):
+                    title, text, status, content_type = fetch_html_context(state["url"])
+                    fetched_title = fetched_title or title
+                    fetched_text = text
+                    ok = bool(text) and (status is None or status < 400) and (
+                        content_type is None or "text/html" in content_type
+                    )
+                else:
+                    fetched_text = compact_markdown
             status = data.get("metadata", {}).get("statusCode")
-            ok = bool(markdown) and (status is None or status < 400)
+            if not ok:
+                ok = bool(fetched_text) and (status is None or status < 400)
         else:
             title, text, status, content_type = fetch_html_context(state["url"])
             fetched_title = title
@@ -120,6 +130,31 @@ def build_graph():
 def _compact(text: str) -> str:
     clean = re.sub(r"\s+", " ", text)
     return clean.strip()
+
+
+def _looks_like_boilerplate(text: str) -> bool:
+    if not text:
+        return True
+    lowered = text.lower()
+    markers = [
+        "skip to main content",
+        "skip to navigation",
+        "sign in",
+        "subscribe",
+        "privacy policy",
+        "terms of service",
+        "cookie",
+        "newsletter",
+        "back to home",
+        "view all",
+        "search jobs",
+        "toggle caption",
+    ]
+    if any(marker in lowered for marker in markers):
+        return True
+    if lowered.count("home") > 6 and lowered.count("news") > 6:
+        return True
+    return False
 
 
 def _safe_slice(text: str | None) -> str:

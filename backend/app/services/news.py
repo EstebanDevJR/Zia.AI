@@ -20,6 +20,78 @@ CATEGORY_QUERIES = {
     "tools": "AI tools OR models OR platforms",
 }
 
+AI_KEYWORDS = [
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "ml",
+    "llm",
+    "large language model",
+    "generative",
+    "gen ai",
+    "deep learning",
+    "chatgpt",
+    "openai",
+    "anthropic",
+    "claude",
+    "gpt",
+    "gemini",
+    "copilot",
+    "deepmind",
+    "mistral",
+    "llama",
+    "nvidia ai",
+]
+
+CATEGORY_HINTS = {
+    "research": [
+        "research",
+        "paper",
+        "arxiv",
+        "benchmark",
+        "dataset",
+        "training",
+        "model",
+    ],
+    "industry": [
+        "startup",
+        "funding",
+        "company",
+        "acquisition",
+        "partnership",
+        "product",
+        "launch",
+    ],
+    "policy": [
+        "regulation",
+        "policy",
+        "government",
+        "law",
+        "legislation",
+        "regulator",
+        "compliance",
+    ],
+    "security": [
+        "security",
+        "safety",
+        "risk",
+        "alignment",
+        "misuse",
+        "red team",
+        "cyber",
+    ],
+    "tools": [
+        "tool",
+        "platform",
+        "api",
+        "sdk",
+        "assistant",
+        "workflow",
+        "plugin",
+        "feature",
+    ],
+}
+
 SAMPLE_NEWS = [
     Article(
         title="AI policy roadmap highlights safety priorities",
@@ -96,6 +168,46 @@ def _trust_score(domain: str, allowed: list[str]) -> float:
     return 1.0 if any(domain == d or domain.endswith(f".{d}") for d in allowed) else 0.3
 
 
+def _is_ai_related(text: str | None) -> bool:
+    if not text:
+        return False
+    haystack = text.lower()
+    return any(keyword in haystack for keyword in AI_KEYWORDS)
+
+
+def _matches_category(text: str | None, category: str | None) -> bool:
+    if not text or not category:
+        return True
+    hints = CATEGORY_HINTS.get(category)
+    if not hints:
+        return True
+    haystack = text.lower()
+    return any(hint in haystack for hint in hints)
+
+
+def _is_listing_url(url: str) -> bool:
+    try:
+        path = urlparse(url).path.lower()
+    except ValueError:
+        return True
+    segments = [segment for segment in path.split("/") if segment]
+    if len(segments) <= 1:
+        return True
+    listing_markers = (
+        "/topic/",
+        "/topics/",
+        "/category/",
+        "/categories/",
+        "/tag/",
+        "/tags/",
+        "/section/",
+        "/sections/",
+        "/author/",
+        "/authors/",
+    )
+    return any(marker in path for marker in listing_markers)
+
+
 def fetch_news(
     category: str | None = None,
     q: str | None = None,
@@ -108,7 +220,7 @@ def fetch_news(
         return [item for item in SAMPLE_NEWS if not category or item.category == category], False
 
     validation_query = q or category
-    validated_items, has_more = _validate_and_slice(items, validation_query, page, page_size)
+    validated_items, has_more = _validate_and_slice(items, validation_query, page, page_size, category)
     return validated_items, has_more
 
 
@@ -155,11 +267,16 @@ def _fetch_raw(
         url = result.get("url")
         if not url or not _is_https(url):
             continue
+        if _is_listing_url(url):
+            continue
         if allowed_domains and not _is_allowed(url, allowed_domains):
             continue
 
         title = result.get("title") or "(Sin titulo)"
         description = result.get("description") or result.get("snippet")
+        combined = f"{title} {description or ''}"
+        if not _is_ai_related(combined):
+            continue
         date_value = result.get("date") or result.get("publishedDate") or result.get("published_at")
         image_url = result.get("imageUrl") or result.get("image")
 
@@ -205,14 +322,21 @@ def _fetch_ddg(
         url = result.get("url")
         if not url or not _is_https(url):
             continue
+        if _is_listing_url(url):
+            continue
         if allowed_domains and not _is_allowed(url, allowed_domains):
             continue
 
         domain = _domain_from_url(url)
+        title = result.get("title") or "(Sin titulo)"
+        description = result.get("snippet")
+        combined = f"{title} {description or ''}"
+        if not _is_ai_related(combined):
+            continue
         items.append(
             Article(
-                title=result.get("title") or "(Sin titulo)",
-                description=result.get("snippet"),
+                title=title,
+                description=description,
                 url=url,
                 source=domain,
                 published_at=None,
@@ -232,6 +356,7 @@ def _validate_and_slice(
     query: str | None,
     page: int,
     page_size: int,
+    category: str | None,
 ) -> tuple[list[Article], bool]:
     if not settings.validation_enabled:
         for item in items:
@@ -252,6 +377,13 @@ def _validate_and_slice(
         except Exception:
             is_valid, context = False, None
         if is_valid:
+            combined = f"{item.title} {item.description or ''} {context or ''}"
+            if not _is_ai_related(combined):
+                continue
+            if context and not _is_ai_related(context):
+                continue
+            if category and context and not _matches_category(context, category):
+                continue
             item.context = context or item.description
             valid_items.append(item)
         if len(valid_items) >= target_end:
