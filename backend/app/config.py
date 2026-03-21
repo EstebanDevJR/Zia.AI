@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     news_max_limit: int = Field(default=60, alias="NEWS_MAX_LIMIT")
     article_ttl_hours: int = Field(default=24, alias="ARTICLE_TTL_HOURS")
     news_prefetch_enabled: bool = Field(default=True, alias="NEWS_PREFETCH_ENABLED")
-    news_prefetch_interval_minutes: int = Field(default=60, alias="NEWS_PREFETCH_INTERVAL_MINUTES")
+    news_prefetch_interval_minutes: int = Field(default=30, alias="NEWS_PREFETCH_INTERVAL_MINUTES")
     news_prefetch_page_size: int = Field(default=25, alias="NEWS_PREFETCH_PAGE_SIZE")
 
     validation_enabled: bool = Field(default=True, alias="VALIDATION_ENABLED")

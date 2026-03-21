@@ -62,7 +62,7 @@ export default function Dashboard() {
     if (!selectedCategory) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}&page=${page}&page_size=${pageSize}`);
+      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}&page=${page}&page_size=${pageSize}&fast=true`);
       if (!res.ok) throw new Error('Error');
       const data = await res.json();
       setArticles(data.items);
