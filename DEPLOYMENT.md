@@ -53,6 +53,7 @@ sudo certbot certonly --webroot \
   --work-dir $(pwd)/nginx/letsencrypt/work \
   --logs-dir $(pwd)/nginx/letsencrypt/logs
 ```
+Si ya existe un certificado para el dominio principal, usa la opción **Renew & replace** para expandirlo e incluir `api`.
 
 Luego reinicia Nginx para que detecte los certificados:
 ```bash

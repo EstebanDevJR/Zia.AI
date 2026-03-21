@@ -11,6 +11,12 @@ WWW_DOMAIN="${WWW_DOMAIN:-}"
 CERT_DOMAIN="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 CERT_API="/etc/letsencrypt/live/${API_DOMAIN}/fullchain.pem"
 
+if [ -f "$CERT_DOMAIN" ] && [ ! -f "$CERT_API" ]; then
+  mkdir -p "/etc/letsencrypt/live/${API_DOMAIN}"
+  ln -sf "../${DOMAIN}/fullchain.pem" "/etc/letsencrypt/live/${API_DOMAIN}/fullchain.pem"
+  ln -sf "../${DOMAIN}/privkey.pem" "/etc/letsencrypt/live/${API_DOMAIN}/privkey.pem"
+fi
+
 if [ -f "$CERT_DOMAIN" ] && [ -f "$CERT_API" ]; then
   TEMPLATE="/etc/nginx/templates/nginx.conf.https.template"
 else
