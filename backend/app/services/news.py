@@ -1,12 +1,14 @@
 ﻿from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from sqlmodel import Session, select
 
 from app.config import settings
+from app.models import ArticleRecord
 from app.schemas import Article
 from app.services.ddg import search_ddg
 from app.services.observability import EXTERNAL_CALLS, log_event
@@ -224,6 +226,29 @@ def fetch_news(
     return validated_items, has_more
 
 
+def get_news(
+    session: Session,
+    category: str | None = None,
+    q: str | None = None,
+    lang: str | None = None,
+    page: int = 1,
+    page_size: int = 8,
+    fast: bool = False,
+) -> tuple[list[Article], bool, bool]:
+    items, has_more = _fetch_from_db(session, category, q, page, page_size)
+    if items and (len(items) >= page_size or has_more):
+        return items, has_more, True
+
+    if fast:
+        raw_items = _fetch_raw(category=category, q=q, lang=lang, limit=_limit_for_page(page, page_size))
+        start = (page - 1) * page_size
+        end = start + page_size
+        return raw_items[start:end], len(raw_items) > end, False
+
+    items, has_more = fetch_news(category=category, q=q, lang=lang, page=page, page_size=page_size)
+    return items, has_more, False
+
+
 def _fetch_raw(
     category: str | None,
     q: str | None,
@@ -422,6 +447,58 @@ def _safe_date(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _fetch_from_db(
+    session: Session,
+    category: str | None,
+    q: str | None,
+    page: int,
+    page_size: int,
+) -> tuple[list[Article], bool]:
+    cutoff = datetime.utcnow() - timedelta(hours=settings.article_ttl_hours)
+    stmt = select(ArticleRecord).where(ArticleRecord.fetched_at >= cutoff)
+    if category:
+        stmt = stmt.where(ArticleRecord.category == category)
+    records = session.exec(stmt).all()
+
+    items: list[tuple[Article, datetime]] = []
+    query_tokens = _query_tokens(q)
+
+    for record in records:
+        combined = f"{record.title} {record.description or ''} {record.context or ''}".lower()
+        if query_tokens and not any(token in combined for token in query_tokens):
+            continue
+        items.append(
+            (
+                Article(
+                    title=record.title,
+                    description=record.description,
+                    url=record.url,
+                    source=record.source_domain,
+                    published_at=record.published_at,
+                    image_url=record.image_url,
+                    category=record.category,
+                    source_domain=record.source_domain,
+                    trust_score=record.trust_score,
+                    context=record.context,
+                ),
+                record.fetched_at,
+            )
+        )
+
+    items.sort(key=lambda pair: pair[0].published_at or pair[1], reverse=True)
+    articles = [pair[0] for pair in items]
+    start = (page - 1) * page_size
+    end = start + page_size
+    return articles[start:end], len(articles) > end
+
+
+def _query_tokens(q: str | None) -> list[str]:
+    if not q:
+        return []
+    tokens = [token.strip().lower() for token in q.split() if len(token.strip()) >= 3]
+    return tokens[:6]
 
 
 def new_tokens() -> tuple[str, str]:

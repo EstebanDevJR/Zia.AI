@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     firecrawl_allowed_domains: str = Field(
         default=
         "theverge.com,wired.com,techcrunch.com,arstechnica.com,technologyreview.com,"
-        "reuters.com,apnews.com,bbc.com,theguardian.com,nytimes.com",
+        "reuters.com,apnews.com,bbc.com,theguardian.com,nytimes.com,"
+        "nature.com,science.org,arxiv.org,openai.com,deepmind.com,anthropic.com,"
+        "huggingface.co,stanford.edu",
         alias="FIRECRAWL_ALLOWED_DOMAINS",
     )
 
@@ -52,6 +54,10 @@ class Settings(BaseSettings):
     news_page_size_default: int = Field(default=8, alias="NEWS_PAGE_SIZE_DEFAULT")
     news_page_size_max: int = Field(default=20, alias="NEWS_PAGE_SIZE_MAX")
     news_max_limit: int = Field(default=60, alias="NEWS_MAX_LIMIT")
+    article_ttl_hours: int = Field(default=24, alias="ARTICLE_TTL_HOURS")
+    news_prefetch_enabled: bool = Field(default=True, alias="NEWS_PREFETCH_ENABLED")
+    news_prefetch_interval_minutes: int = Field(default=60, alias="NEWS_PREFETCH_INTERVAL_MINUTES")
+    news_prefetch_page_size: int = Field(default=25, alias="NEWS_PREFETCH_PAGE_SIZE")
 
     validation_enabled: bool = Field(default=True, alias="VALIDATION_ENABLED")
     validation_max: int = Field(default=20, alias="VALIDATION_MAX")

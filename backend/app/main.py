@@ -18,10 +18,10 @@ from app.schemas import (
     SummaryRequest,
     SummaryResponse,
 )
-from app.services.cache import cache_key, load_cache, persist_articles, save_cache
+from app.services.cache import cache_key, load_cache, persist_articles, purge_old_content, save_cache
 from app.services.emailer import send_email, smtp_configured
 from app.services.firecrawl import scrape_markdown
-from app.services.news import CATEGORY_QUERIES, fetch_news, upsert_subscription
+from app.services.news import CATEGORY_QUERIES, get_news, upsert_subscription
 from app.services.observability import init_logging, log_event, metrics_app, metrics_middleware
 from app.services.queue import enqueue_job
 from app.services.rate_limit import check_rate_limit
@@ -68,6 +68,7 @@ def news(
     lang: str | None = None,
     page: int = 1,
     page_size: int | None = None,
+    fast: bool = False,
 ) -> NewsResponse:
     if page < 1:
         page = 1
@@ -77,15 +78,25 @@ def news(
         page_size = settings.news_page_size_default
     page_size = min(page_size, settings.news_page_size_max)
 
-    cache_id = cache_key([category or "all", q or "", lang or "", str(page), str(page_size)])
+    cache_id = cache_key([category or "all", q or "", lang or "", str(page), str(page_size), str(fast)])
     with next(get_session()) as session:
+        purge_old_content(session)
         cached = load_cache(session, cache_id)
         if cached:
             items, has_more = cached
             return NewsResponse(items=items, page=page, page_size=page_size, has_more=has_more)
 
-        items, has_more = fetch_news(category=category, q=q, lang=lang, page=page, page_size=page_size)
-        persist_articles(session, items)
+        items, has_more, from_db = get_news(
+            session,
+            category=category,
+            q=q,
+            lang=lang,
+            page=page,
+            page_size=page_size,
+            fast=fast,
+        )
+        if not from_db:
+            persist_articles(session, items)
         save_cache(session, cache_id, items, has_more=has_more)
 
     log_event("news_fetch", ip=request.client.host if request.client else "unknown")

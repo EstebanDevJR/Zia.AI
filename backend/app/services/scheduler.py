@@ -2,13 +2,14 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from sqlmodel import Session, select
 
 from app.config import settings
 from app.db import engine
 from app.models import Subscription
 from app.services.queue import enqueue_job
-from app.services.tasks import send_digest_for_subscription
+from app.services.tasks import refresh_news_cache, send_digest_for_subscription
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -25,6 +26,9 @@ def start_scheduler() -> None:
     scheduler = get_scheduler()
     trigger = CronTrigger(hour=settings.daily_digest_hour, minute=0)
     scheduler.add_job(send_daily_digest, trigger, id="daily_digest", replace_existing=True)
+    if settings.news_prefetch_enabled:
+        refresh_trigger = IntervalTrigger(minutes=settings.news_prefetch_interval_minutes)
+        scheduler.add_job(prefetch_news, refresh_trigger, id="prefetch_news", replace_existing=True)
     scheduler.start()
 
 
@@ -38,3 +42,9 @@ def send_daily_digest() -> None:
         job = enqueue_job("app.services.tasks.send_digest_for_subscription", sub.id)
         if job is None:
             send_digest_for_subscription(sub.id)
+
+
+def prefetch_news() -> None:
+    job = enqueue_job("app.services.tasks.refresh_news_cache")
+    if job is None:
+        refresh_news_cache()

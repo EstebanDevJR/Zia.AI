@@ -5,10 +5,10 @@ import json
 from datetime import datetime, timedelta
 from typing import Iterable
 
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.config import settings
-from app.models import ArticleRecord, NewsCache
+from app.models import ArticleRecord, NewsCache, SummaryCache
 from app.schemas import Article
 
 
@@ -87,4 +87,12 @@ def persist_articles(session: Session, articles: list[Article]) -> None:
                     trust_score=article.trust_score or 1.0,
                 )
             )
+    session.commit()
+
+
+def purge_old_content(session: Session) -> None:
+    cutoff = datetime.utcnow() - timedelta(hours=settings.article_ttl_hours)
+    session.exec(delete(ArticleRecord).where(ArticleRecord.fetched_at < cutoff))
+    session.exec(delete(SummaryCache).where(SummaryCache.created_at < cutoff))
+    session.exec(delete(NewsCache).where(NewsCache.created_at < cutoff))
     session.commit()
