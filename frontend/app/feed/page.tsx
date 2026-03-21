@@ -46,10 +46,11 @@ export default function Dashboard() {
         const res = await fetch(`${API_URL}/categories`);
         if (!res.ok) throw new Error('Error');
         const data = await res.json();
-        setCategories(data);
-        if (data.length > 0) {
-          setSelectedCategory(data[0]);
-          setSubCategory(data[0]);
+        const normalized = Array.isArray(data) ? data.filter(Boolean) : [];
+        setCategories(['all', ...normalized]);
+        if (normalized.length > 0) {
+          setSelectedCategory('all');
+          setSubCategory(normalized[0]);
         }
       } catch (err) {
         console.error(err);
@@ -62,7 +63,8 @@ export default function Dashboard() {
     if (!selectedCategory) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/news?category=${selectedCategory}&lang=${lang}&page=${page}&page_size=${pageSize}&fast=true`);
+      const categoryParam = selectedCategory === 'all' ? '' : `category=${selectedCategory}&`;
+      const res = await fetch(`${API_URL}/news?${categoryParam}lang=${lang}&page=${page}&page_size=${pageSize}&fast=true`);
       if (!res.ok) throw new Error('Error');
       const data = await res.json();
       setArticles(data.items);
@@ -296,7 +298,7 @@ export default function Dashboard() {
                 onChange={(e) => setSubCategory(e.target.value)}
                 className="w-full bg-transparent border-b border-black dark:border-white py-2 text-xs outline-none uppercase tracking-widest"
               >
-                {categories.map(cat => (
+                {categories.filter(cat => cat !== 'all').map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

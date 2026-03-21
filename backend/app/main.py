@@ -71,6 +71,8 @@ def news(
     page_size: int | None = None,
     fast: bool = False,
 ) -> NewsResponse:
+    if category == "all":
+        category = None
     if page < 1:
         page = 1
     if page_size is None:
