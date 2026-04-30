@@ -35,7 +35,7 @@ def start_scheduler() -> None:
 def send_daily_digest() -> None:
     with Session(engine) as session:
         subs = session.exec(
-            select(Subscription).where(Subscription.active == True, Subscription.confirmed == True)
+            select(Subscription).where(Subscription.active, Subscription.confirmed)
         ).all()
 
     for sub in subs:

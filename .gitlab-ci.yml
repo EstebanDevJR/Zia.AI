@@ -19,7 +19,7 @@ frontend_lint:
   image: node:20-alpine
   script:
     - cd frontend
-    - npm ci
+    - npm install
     - npm run lint
 
 backend_lint:
@@ -40,7 +40,7 @@ frontend_test:
   stage: test
   image: node:20-alpine
   script:
-    - npm --prefix frontend ci
+    - npm --prefix frontend install
     - npm --prefix frontend run test
 
 nginx_test:
@@ -53,5 +53,5 @@ frontend_build:
   stage: build
   image: node:20-alpine
   script:
-    - npm --prefix frontend ci
+    - npm --prefix frontend install
     - npm --prefix frontend run build
