@@ -55,3 +55,10 @@ frontend_build:
   script:
     - npm --prefix frontend install
     - npm --prefix frontend run build
+
+backend_build:
+  stage: build
+  image: python:3.11-slim
+  script:
+    - pip install --no-cache-dir -r backend/requirements.txt
+    - python -m compileall -q backend/app

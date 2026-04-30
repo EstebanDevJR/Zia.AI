@@ -40,6 +40,11 @@ export default function Dashboard() {
   const [subEmail, setSubEmail] = useState('');
   const [subCategory, setSubCategory] = useState('');
 
+  const showStatus = useCallback((type: 'success' | 'error', message: string) => {
+    setStatus({ type, message });
+    setTimeout(() => setStatus(null), 3000);
+  }, []);
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -75,20 +80,14 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, lang, page, pageSize]);
+  }, [selectedCategory, lang, page, pageSize, showStatus]);
 
   useEffect(() => {
-    fetchNews();
+    const timer = setTimeout(() => {
+      void fetchNews();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchNews]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [selectedCategory, lang]);
-
-  const showStatus = (type: 'success' | 'error', message: string) => {
-    setStatus({ type, message });
-    setTimeout(() => setStatus(null), 3000);
-  };
 
   const generateSummary = async (article: Article) => {
     if (summaries[article.url]) return;
@@ -176,7 +175,10 @@ export default function Dashboard() {
               <span>Category</span>
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  setSelectedCategory(e.target.value);
+                }}
                 className="bg-transparent border-none focus:ring-0 p-0 cursor-pointer uppercase"
               >
                 {categories.map(cat => (
@@ -188,7 +190,10 @@ export default function Dashboard() {
               <span>Language</span>
               <select
                 value={lang}
-                onChange={(e) => setLang(e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  setLang(e.target.value);
+                }}
                 className="bg-transparent border-none focus:ring-0 p-0 cursor-pointer uppercase"
               >
                 <option value="es-ES">ES</option>
