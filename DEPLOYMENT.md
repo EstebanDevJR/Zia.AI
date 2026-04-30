@@ -9,8 +9,8 @@ sudo systemctl enable --now docker
 
 ## 2) Clonar repo
 ```bash
-git clone https://github.com/EstebanDevJR/Zia.AI.git
-cd Zia.AI
+git clone https://gitlab.com/EstebanDevJR/Zia-AI.git
+cd Zia-AI
 ```
 
 ## 3) Variables de entorno
@@ -79,3 +79,25 @@ Reiniciar servicios:
 ```bash
 docker compose restart
 ```
+
+## 8) CI/CD en GitLab
+El pipeline está definido en `.gitlab-ci.yml` y se ejecuta para:
+- `push`
+- `merge_request_event`
+
+Jobs actuales:
+- `frontend_lint`
+- `backend_lint`
+- `backend_test`
+- `frontend_test`
+- `nginx_test`
+- `frontend_build`
+
+Para ver resultados:
+- Entra al proyecto en GitLab y abre **CI/CD > Pipelines**.
+- Verifica que cada stage termine en verde.
+
+Si no aparecen pipelines:
+1. Confirma que el repositorio remoto principal es GitLab.
+2. Haz un `push` nuevo (el editor de pipelines solo valida sintaxis).
+3. Revisa que haya runners activos en **Settings > CI/CD > Runners**.
