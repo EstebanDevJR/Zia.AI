@@ -1,0 +1,42 @@
+stages:
+  - lint
+  - test
+
+variables:
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://backend:8000}"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+frontend_lint:
+  stage: lint
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+
+backend_test:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install --no-cache-dir -r backend/requirements.txt pytest
+    - python -m pytest -q backend/tests
+
+frontend_test:
+  stage: test
+  image: node:20-alpine
+  script:
+    - npm --prefix frontend ci
+    - npm --prefix frontend run test
+
+nginx_test:
+  stage: test
+  image: alpine:3.20
+  script:
+    - sh nginx/tests/smoke.sh
