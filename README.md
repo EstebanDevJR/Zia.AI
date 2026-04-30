@@ -52,5 +52,25 @@ npm run dev
 docker compose up --build
 ```
 
+## CI/CD (GitLab)
+El repositorio incluye un pipeline de Integracion Continua definido en `.gitlab-ci.yml` en la raiz del proyecto.
+
+### Que valida el pipeline
+- `frontend_lint`: instala dependencias del frontend y ejecuta `npm run lint`.
+- `backend_test`: instala dependencias de Python y ejecuta `python -m pytest -q backend/tests`.
+- `frontend_test`: ejecuta `npm --prefix frontend run test` para el smoke test del frontend.
+- `nginx_test`: ejecuta `sh nginx/tests/smoke.sh` para validar configuracion y ruteo base de plantillas nginx.
+
+### Como se activa
+- Se dispara automaticamente en cada `push`.
+- Tambien se dispara en cada `merge request`.
+
+### Donde ver el resultado
+En GitLab, entra al proyecto y revisa **CI/CD > Pipelines**. Alli aparece el estado de cada ejecucion (exito o fallo) y el detalle por job.
+
+### Variables de entorno en CI
+- No se hardcodean credenciales en el repositorio.
+- Si se requieren secretos para etapas futuras, deben configurarse en **Settings > CI/CD > Variables** (idealmente como protected/masked).
+
 ## Deploy
 Ver `DEPLOYMENT.md`.
